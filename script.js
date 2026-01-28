@@ -23,6 +23,30 @@ const simulations = [
         path: 'simulations/trees/',
         tags: ['nature', 'atmospheric', 'day-night'],
         icon: '🌳'
+    },
+    {
+        id: 'jellyfish',
+        title: 'Neon Jellyfish',
+        description: 'Deep sea bioluminescent procedural lifeforms with physics-based tentacles.',
+        path: 'simulations/jellyfish/',
+        tags: ['water', 'creatures', 'physics'],
+        icon: '🪼'
+    },
+    {
+        id: 'aquarium',
+        title: 'Digital Aquarium',
+        description: 'An ecosystem of 150 autonomous fish driven by the Boids flocking algorithm.',
+        path: 'simulations/aquarium/',
+        tags: ['ai', 'nature', 'flocking'],
+        icon: '🐠'
+    },
+    {
+        id: 'ant_farm',
+        title: 'Ant Colony',
+        description: 'A pixel-art style simulation of an ant colony digging tunnels and exploring.',
+        path: 'simulations/ant_farm/',
+        tags: ['pixel-art', 'calm', 'automata'],
+        icon: '🐜'
     }
 ];
 

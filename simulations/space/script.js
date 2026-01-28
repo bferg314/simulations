@@ -168,12 +168,23 @@ pane.addBinding(CONFIG, 'color', { color: { type: 'float' } });
 
 // Loop
 const clock = new THREE.Clock();
+let speedMultiplier = 1.0;
+let targetMultiplier = 1.0;
+
+window.addEventListener('mousedown', () => targetMultiplier = 8.0);
+window.addEventListener('mouseup', () => targetMultiplier = 1.0);
+window.addEventListener('touchstart', () => targetMultiplier = 8.0);
+window.addEventListener('touchend', () => targetMultiplier = 1.0);
 
 function animate() {
     requestAnimationFrame(animate);
 
     const delta = clock.getDelta();
-    const speed = CONFIG.warpSpeed * 200 * delta; // Speed tuning
+
+    // Smoothly transition speed
+    speedMultiplier += (targetMultiplier - speedMultiplier) * 5 * delta;
+
+    const speed = CONFIG.warpSpeed * 200 * delta * speedMultiplier; // Speed tuning
 
     // Move Stars
     const positions = starGeo.attributes.position.array;

@@ -203,4 +203,27 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Interaction: Click to Plant
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+window.addEventListener('pointerdown', (event) => {
+    // Calculate pointer position in normalized device coordinates
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const intersects = raycaster.intersectObject(ground);
+
+    if (intersects.length > 0) {
+        const point = intersects[0].point;
+        // Spawn a new flower
+        const flower = new Flower(scene, point.x, point.z);
+        // Start it slightly younger so it pops up
+        flower.age = 0;
+        flowers.push(flower);
+    }
+});
+
 animate();
