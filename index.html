@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Hub</title>
+    <meta name="description" content="A collection of web-based visual simulations.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-globes">
+        <div class="globe globe-1"></div>
+        <div class="globe globe-2"></div>
+    </div>
+
+    <main class="container">
+        <header class="main-header">
+            <h1>Simulation Hub</h1>
+            <p class="subtitle">Explore a collection of interactive visual experiences.</p>
+            
+            <div class="search-container">
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="searchInput" placeholder="Search simulations..." autocomplete="off">
+            </div>
+        </header>
+
+        <div id="simulationGrid" class="grid">
+            <!-- Tiles will be injected here by script.js -->
+        </div>
+        
+        <div id="noResults" class="no-results hidden">
+            <p>No simulations found matching your search.</p>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <p>&copy; 2024 Simulation Hub. Built with Web Technologies.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
