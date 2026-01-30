@@ -36,19 +36,28 @@ A pixel-art style simulation of an ant colony digging tunnels and exploring.
 - **Tech**: Canvas API, Cellular Automata
 - **Features**: Digging mechanics, pheromone trails
 
-## 🚧 Planned Simulations (Microscopic Web Concepts)
-
+## � Biological Simulations (New!)
+Interactive 2D simulations exploring the microscopic world.
+ 
 ### 💧 Pond Drop Microcosm
-A single drop of pond water teeming with life across multiple trophic levels.
-- **Concept**: Procedural microorganisms, food webs, caustic lighting.
-
+A simulated drop of pond water teeming with life.
+- **Micro-Ecosystem**: Observe a food web of Algae, Bacteria, and hunting Paramecia.
+- **Fluid Dynamics**: Entities drift with global micro-currents.
+- **Visuals**: "Caustic" lighting shader, magnification zoom, and particle feedback on feeding events.
+ 
 ### 🌱 Soil Rhizosphere
-Hidden fungal internet and bacterial cities around plant roots.
-- **Concept**: L-system fungal networks, root exudates, nutrient cycling.
-
+An interactive view of the hidden "Wood Wide Web" beneath the soil.
+- **Underground Ecosystem**: Watch root taproots dig deep while fungal mycelium networks branch out to find nutrients.
+- **Layers**: Scientifically stratified soil horizons (Topsoil, Subsoil, Bedrock).
+- **Symbiosis**: Visualized nutrient pulses traveling between fungal nodes and plant roots.
+- **Interaction**: Water the soil or add organic matter to stimulate growth.
+ 
 ### 🩸 Blood Vessel Ecology
-Flowing environment inside a capillary with cellular inhabitants.
-- **Concept**: Fluid dynamics, soft body cells, immune response.
+A high-fidelity hemodynamic simulation inside a blood vessel.
+- **Hemostasis**: Use a scalpel tool to damage the vessel wall and watch platelets flock to form clots.
+- **Dynamic Blood Pressure**: Adjust Cardiac Output to change flow velocity and pressure. High pressure (>190mmHg) causes spontaneous vessel rupture.
+- **Immune Response**: White Blood Cells (Neutrophils) actively chemotax towards wounds to fight infection. It features clot aging and healing mechanics.
+- **Tech**: PIXI.js, Custom Shaders for plasma.
 
 ## 🛠️ Technology Stack
 - **Core**: HTML5, Vanilla JavaScript (ES6+)

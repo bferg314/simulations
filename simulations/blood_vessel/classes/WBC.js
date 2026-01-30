@@ -43,13 +43,50 @@ export class WBC {
         }
     }
 
-    update(delta, bounds, flowFactor, vesselCenter, vesselRadius) {
+    update(delta, bounds, flowFactor, vesselCenter, vesselRadius, damageZones, entities) {
         let distFromCenter = Math.abs(this.y - vesselCenter);
         let normalizedPos = distFromCenter / vesselRadius;
         if (normalizedPos > 1) normalizedPos = 1;
 
-        // MARGINATION: Neutrophils tend to roll along the walls
-        if (this.type === 'neutrophil') {
+        // Base Flow Velocity
+        let flowVelocity = 6 * (1 - (normalizedPos * normalizedPos));
+
+        // CHEMOTAXIS (Seek Damage/Clots)
+        let attracting = false;
+
+        // Check damage zones
+        if (damageZones && damageZones.length > 0) {
+            let closest = null;
+            let minDist = 300; // Sensing range
+
+            for (const zone of damageZones) {
+                const dx = zone.x - this.x;
+                const dy = zone.y - this.y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < minDist) {
+                    minDist = d;
+                    closest = zone;
+                }
+            }
+
+            if (closest) {
+                attracting = true;
+                // Move towards damage 
+                const dx = closest.x - this.x;
+                const dy = closest.y - this.y;
+                const angle = Math.atan2(dy, dx);
+
+                // Active migration overrides passive flow partially
+                this.x += Math.cos(angle) * 1.5 * delta;
+                this.y += Math.sin(angle) * 1.5 * delta;
+
+                // Slow down flow to stick around
+                flowVelocity *= 0.2;
+            }
+        }
+
+        // MARGINATION: Neutrophils tend to roll along the walls (if not seeking damage)
+        if (!attracting && this.type === 'neutrophil') {
             // Bias Y towards walls
             if (this.y < vesselCenter) this.y -= 0.2 * delta;
             else this.y += 0.2 * delta;
@@ -59,11 +96,7 @@ export class WBC {
             if (this.y > vesselCenter + vesselRadius - 20) this.y = vesselCenter + vesselRadius - 20;
         }
 
-        // Velocity
-        // Rolling cells (near wall) move much slower
-        let flowVelocity = 6 * (1 - (normalizedPos * normalizedPos));
-
-        if (this.type === 'neutrophil' && normalizedPos > 0.8) {
+        if (this.type === 'neutrophil' && normalizedPos > 0.8 && !attracting) {
             // Rolling friction
             flowVelocity *= 0.3;
             // Add "rolling" wobble
@@ -77,19 +110,11 @@ export class WBC {
 
         this.x += flowVelocity * flowFactor * delta;
 
-        // Amoeboid movement visual (pulsing)
-        // const breathe = 1 + Math.sin(Date.now() * 0.002 + this.timeOffset) * 0.05;
-        // this.sprite.scale.set(this.scaleBase * breathe);
-
         // Screen wrap
         if (this.x > bounds.width + 60) {
             this.x = -60;
             // Respawn logic
             let newY = vesselCenter + (Math.random() - 0.5) * 2 * vesselRadius * 0.9;
-            if (this.type === 'neutrophil') {
-                // Bias new neutrophils to already be marginated? 
-                // Or let them drift there. Let's let them drift.
-            }
             this.y = newY;
         }
 

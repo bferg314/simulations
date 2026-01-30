@@ -49,12 +49,22 @@ export class Platelet {
 
     update(delta, bounds, flowFactor, vesselCenter, vesselRadius, damageZones) {
         if (this.state === 'clumping') {
-            // Stuck in a clot, maybe jitter slightly but don't flow
+            // Stuck in a clot
             this.x += (Math.random() - 0.5) * 0.5;
             this.y += (Math.random() - 0.5) * 0.5;
             this.sprite.x = this.x;
             this.sprite.y = this.y;
-            return;
+
+            // HEALING LOGIC: Dissolve clot over time
+            this.clotLife = (this.clotLife || 0) + 1;
+            if (this.clotLife > 1000) { // Approx 16 seconds at 60fps
+                this.state = 'active'; // Detach but stay activated briefly?
+                // Or just reset fully
+                this.clotLife = 0;
+                // Drift away
+            } else {
+                return;
+            }
         }
 
         // Standard flow logic (similar to RBC)
@@ -62,7 +72,7 @@ export class Platelet {
         let normalizedPos = distFromCenter / vesselRadius;
         if (normalizedPos > 1) normalizedPos = 1;
 
-        let flowVelocity = 6.5 * (1 - (normalizedPos * normalizedPos)); // Slightly faster than RBCs in center
+        let flowVelocity = 6.5 * (1 - (normalizedPos * normalizedPos));
         if (flowVelocity < 0.5) flowVelocity = 0.5;
 
         this.x += flowVelocity * flowFactor * delta;
@@ -82,9 +92,7 @@ export class Platelet {
                 if (dist < zone.radius) {
                     this.activate();
                     this.state = 'clumping'; // Instant stick for now
-                    // "Attach" to the wound position with some randomness
-                    // this.x = zone.x + (Math.random()-0.5)*zone.radius;
-                    // this.y = zone.y + (Math.random()-0.5)*zone.radius;
+                    this.clotLife = 0; // Reset clot timer
                 }
             }
         }

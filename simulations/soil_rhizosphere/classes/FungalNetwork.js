@@ -86,5 +86,36 @@ class FungalNetwork {
             }
         }
         endShape();
+
+        // Visualize Symbiosis / Nutrient Transfer (Pulses)
+        // Draw moving dots along random paths
+        // We'll deterministically pick some paths based on time
+        if (this.nodes.length > 20) {
+            noStroke();
+            fill(200, 255, 200); // Glowing green pulse
+            const pulseCount = 5;
+            const t = frameCount * 0.05;
+
+            for (let i = 0; i < pulseCount; i++) {
+                // Select a 'path' index based on time and noise
+                // We map time to an index in the nodes array
+                let pathOffset = i * 200;
+                let idx = floor(noise(t * 0.1 + i) * this.nodes.length);
+                let node = this.nodes[idx];
+
+                // Trace back a bit to interpolate position on the branch
+                if (node && node.parent !== -1) {
+                    let parent = this.nodes[node.parent];
+                    let lerpVal = (t + i) % 1.0;
+
+                    // Pulse moves from parent to child (growth) or reverse (nutrient)
+                    // Let's do reverse for nutrients (soil -> root)
+                    let lx = lerp(node.pos.x, parent.pos.x, lerpVal);
+                    let ly = lerp(node.pos.y, parent.pos.y, lerpVal);
+
+                    ellipse(lx, ly, 4, 4);
+                }
+            }
+        }
     }
 }

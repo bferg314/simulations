@@ -132,6 +132,40 @@ function spawnAlgae(count) {
     updateStats();
 }
 
+function createParticleBurst(x, y, color) {
+    const particleCount = 5;
+    for (let i = 0; i < particleCount; i++) {
+        const p = new PIXI.Graphics();
+        p.beginFill(color);
+        p.drawCircle(0, 0, 2);
+        p.endFill();
+        p.x = x;
+        p.y = y;
+        state.container.addChild(p);
+
+        // Simple physics for particle
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2 + 1;
+        let vx = Math.cos(angle) * speed;
+        let vy = Math.sin(angle) * speed;
+        let life = 1.0;
+
+        const animateParticle = () => {
+            life -= 0.05;
+            p.x += vx;
+            p.y += vy;
+            p.alpha = life;
+
+            if (life > 0) {
+                requestAnimationFrame(animateParticle);
+            } else {
+                state.container.removeChild(p);
+            }
+        };
+        requestAnimationFrame(animateParticle);
+    }
+}
+
 function gameLoop(delta) {
     // Update shader time
     if (state.causticFilter) {
@@ -141,9 +175,19 @@ function gameLoop(delta) {
     // Update all entities
     const bounds = { width: state.app.screen.width / state.zoom, height: state.app.screen.height / state.zoom };
 
+    // Micro-currents (drift)
+    const time = Date.now() * 0.001;
+    // Current vector changes slowly over time using sin/cos
+    const driftX = Math.sin(time * 0.1) * 0.05;
+    const driftY = Math.cos(time * 0.13) * 0.05;
+
     // Iterate properly to allow removal
     for (let i = state.entities.length - 1; i >= 0; i--) {
         const entity = state.entities[i];
+
+        // Apply Drift
+        entity.x += driftX * delta * 60; // Scale drift by delta (assuming delta goes from ~0.016 up)
+        entity.y += driftY * delta * 60;
 
         // Pass entities list for interaction (hunting)
         // Returns an entity if it "ate" something
@@ -153,6 +197,9 @@ function gameLoop(delta) {
             // Remove eaten entity
             const index = state.entities.indexOf(eatenEntity);
             if (index > -1) {
+                // PARTICLE BURST EFFECT
+                createParticleBurst(eatenEntity.x, eatenEntity.y, eatenEntity.color || 0x00FF00); // Use entity color if available
+
                 state.entities.splice(index, 1);
                 state.container.removeChild(eatenEntity.graphics);
 

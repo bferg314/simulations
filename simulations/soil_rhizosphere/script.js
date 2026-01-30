@@ -26,7 +26,27 @@ function setup() {
 }
 
 function draw() {
-    background(30, 20, 15); // Deep dirt bg
+    // Gradient Soil Background
+    // Create a gradient from Topsoil (Darker) to Bedrock (Rocky)
+    const c1 = color(45, 30, 20); // Topsoil
+    const c2 = color(60, 45, 30); // Subsoil
+    const c3 = color(30, 25, 25); // Bedrock
+
+    noFill();
+    // Draw gradient lines
+    for (let y = 0; y < height; y++) {
+        let inter = map(y, 0, height, 0, 1);
+        let c;
+        if (inter < 0.4) {
+            // Blend top -> sub
+            c = lerpColor(c1, c2, map(inter, 0, 0.4, 0, 1));
+        } else {
+            // Blend sub -> bedrock
+            c = lerpColor(c2, c3, map(inter, 0.4, 1, 0, 1));
+        }
+        stroke(c);
+        line(0, y, width, y);
+    }
 
     // Logic
     handleInput();
