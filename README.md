@@ -21,6 +21,35 @@ Observe ancient trees swaying in the wind as the day turns to night and the cycl
 - **Tech**: Three.js, Fog, Lighting
 - **Features**: Day/Night cycle, atmospheric lighting, wind animation
 
+### 🪼 Neon Jellyfish
+Deep sea bioluminescent procedural lifeforms with physics-based tentacles.
+- **Tech**: Three.js, Physics
+- **Features**: Soft body simulation, bioluminescence
+
+### 🐠 Digital Aquarium
+An ecosystem of 150 autonomous fish driven by the Boids flocking algorithm.
+- **Tech**: Three.js, InstancedMesh
+- **Features**: Flocking behavior, predator avoidance
+
+### 🐜 Ant Colony
+A pixel-art style simulation of an ant colony digging tunnels and exploring.
+- **Tech**: Canvas API, Cellular Automata
+- **Features**: Digging mechanics, pheromone trails
+
+## 🚧 Planned Simulations (Microscopic Web Concepts)
+
+### 💧 Pond Drop Microcosm
+A single drop of pond water teeming with life across multiple trophic levels.
+- **Concept**: Procedural microorganisms, food webs, caustic lighting.
+
+### 🌱 Soil Rhizosphere
+Hidden fungal internet and bacterial cities around plant roots.
+- **Concept**: L-system fungal networks, root exudates, nutrient cycling.
+
+### 🩸 Blood Vessel Ecology
+Flowing environment inside a capillary with cellular inhabitants.
+- **Concept**: Fluid dynamics, soft body cells, immune response.
+
 ## 🛠️ Technology Stack
 - **Core**: HTML5, Vanilla JavaScript (ES6+)
 - **Styling**: CSS3 (Variables, Grid, Flexbox, Animations)

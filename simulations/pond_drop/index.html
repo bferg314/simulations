@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pond Drop Microcosm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Pixi.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+</head>
+
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="ui-overlay">
+        <header>
+            <h1>Pond Drop Microcosm</h1>
+            <p>400x Magnification</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="zoomSlider">Zoom</label>
+                <input type="range" id="zoomSlider" min="0.5" max="2.0" step="0.1" value="1.0">
+            </div>
+
+            <div class="control-group">
+                <label for="lightSlider">Light Intensity</label>
+                <input type="range" id="lightSlider" min="0" max="1.5" step="0.1" value="1.0">
+            </div>
+
+            <div class="tools">
+                <button class="tool-btn active" data-tool="cursor" title="Interact/Touch">
+                    👆
+                </button>
+                <button class="tool-btn" data-tool="pipette" title="Add Nutrients">
+                    🧪
+                </button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">Bacteria</span>
+                    <span class="value" id="count-bacteria">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Paramecia</span>
+                    <span class="value" id="count-paramecia">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Algae</span>
+                    <span class="value" id="count-algae">0</span>
+                </div>
+            </div>
+        </div>
+
+        <a href="../../index.html" class="back-link">← Back to Hub</a>
+    </div>
+
+    <!-- Shaders -->
+    <script id="caustic-frag" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform float time;
+        uniform vec2 resolution;
+        varying vec2 vTextureCoord;
+        uniform sampler2D uSampler;
+
+        // Simple caustic noise effect
+        void main() {
+            vec2 uv = vTextureCoord;
+            
+            // Generate some wave-like distortion
+            float t = time * 0.5;
+            uv.x += sin(uv.y * 10.0 + t) * 0.005;
+            uv.y += cos(uv.x * 10.0 + t) * 0.005;
+            
+            vec4 color = texture2D(uSampler, uv);
+            
+            // Add subtle chromatic aberration
+            float r = texture2D(uSampler, uv + vec2(0.002, 0.0)).r;
+            float b = texture2D(uSampler, uv - vec2(0.002, 0.0)).b;
+            
+            gl_FragColor = vec4(r, color.g, b, color.a);
+        }
+    </script>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>

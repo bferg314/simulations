@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soil Rhizosphere</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- p5.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="ui-overlay">
+        <header>
+            <h1>Soil Rhizosphere</h1>
+            <p>Underground Ecosystem</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Tools</label>
+                <div class="tools">
+                    <button class="tool-btn active" data-tool="observe" title="Observe">👁️</button>
+                    <button class="tool-btn" data-tool="water" title="Add Water">💧</button>
+                    <button class="tool-btn" data-tool="organic" title="Drop Leaf">🍂</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>View Layers</label>
+                <div class="toggle-group">
+                    <label><input type="checkbox" id="check-fungi" checked> Fungi</label>
+                    <label><input type="checkbox" id="check-bacteria" checked> Bacteria</label>
+                    <label><input type="checkbox" id="check-roots" checked> Roots</label>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">Moisture</span>
+                    <span class="value" id="val-moisture">50%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Nutrients</span>
+                    <span class="value" id="val-nutrients">Low</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Fungal Net</span>
+                    <span class="value" id="val-network">0 nodes</span>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><span class="dot" style="background:#5D4037"></span>Soil</div>
+                <div class="legend-item"><span class="dot" style="background:#A1887F"></span>Root</div>
+                <div class="legend-item"><span class="dot" style="background:#EEEEEE"></span>Mycelium</div>
+                <div class="legend-item"><span class="dot" style="background:#4FC3F7"></span>Water</div>
+            </div>
+        </div>
+
+        <a href="../../index.html" class="back-link">← Back to Hub</a>
+    </div>
+
+    <!-- Script -->
+    <script src="classes/SoilParticle.js"></script>
+    <script src="classes/RootSystem.js"></script>
+    <script src="classes/FungalNetwork.js"></script>
+    <script src="classes/Bacteria.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

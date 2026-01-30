@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Vessel Ecology</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Pixi.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+</head>
+
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="ui-overlay">
+        <header>
+            <div class="vital-signs">
+                <span>HR: <b id="val-hr">60</b> BPM</span>
+                <span>BP: <b id="val-bp">120/80</b></span>
+            </div>
+            <h1>Blood Vessel Ecology</h1>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Micro-Interaction</label>
+                <div class="tools">
+                    <button class="tool-btn active" data-tool="observe" title="Observe / Pulse">
+                        🩺
+                    </button>
+                    <button class="tool-btn dangerous" data-tool="cut" title="Incision / Damage">
+                        🔪
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="flowSlider">Cardiac Output (Flow Rate)</label>
+                <input type="range" id="flowSlider" min="0" max="2.0" step="0.1" value="1.0">
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">RBC Count</span>
+                    <span class="value" id="count-rbc">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">O₂ Saturation</span>
+                    <span class="value" id="val-o2">98%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Hemostatis</span>
+                    <span class="value" id="val-status">Normal</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="vignette"></div>
+        <a href="../../index.html" class="back-link">← Back to Hub</a>
+    </div>
+
+    <!-- Shaders -->
+    <script id="plasma-frag" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform float time;
+        uniform vec2 resolution;
+        
+        void main() {
+            vec2 uv = gl_FragCoord.xy / resolution.xy;
+            
+            // Flowing amber noise
+            float flow = time * 0.2;
+            float noise1 = sin(uv.x * 10.0 + flow + uv.y * 5.0) * 0.02;
+            float noise2 = cos(uv.y * 20.0 - flow * 0.5) * 0.01;
+            
+            vec3 colorA = vec3(0.95, 0.9, 0.7); // Pale amber
+            vec3 colorB = vec3(1.0, 0.95, 0.8); // Lighter amber
+            
+            vec3 finalColor = mix(colorA, colorB, uv.y + noise1 + noise2);
+            
+            // Add "particulates" - tiny high freq noise
+            float particulate = fract(sin(dot(uv + time*0.1, vec2(12.9898, 78.233))) * 43758.5453);
+            if(particulate > 0.97) finalColor -= 0.05;
+            
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    </script>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>

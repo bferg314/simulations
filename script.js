@@ -47,6 +47,30 @@ const simulations = [
         path: 'simulations/ant_farm/',
         tags: ['pixel-art', 'calm', 'automata'],
         icon: '🐜'
+    },
+    {
+        id: 'pond_drop',
+        title: 'Pond Drop Microcosm',
+        description: 'A single drop of pond water teeming with life across multiple trophic levels.',
+        path: 'simulations/pond_drop/',
+        tags: ['microscopic', 'biology', 'ecosystem', 'planned'],
+        icon: '💧'
+    },
+    {
+        id: 'soil_rhizosphere',
+        title: 'Soil Rhizosphere',
+        description: 'Hidden fungal internet and bacterial cities around plant roots.',
+        path: 'simulations/soil_rhizosphere/',
+        tags: ['biology', 'fungi', 'underground', 'planned'],
+        icon: '🌱'
+    },
+    {
+        id: 'blood_vessel',
+        title: 'Blood Vessel Ecology',
+        description: 'Flowing environment inside a capillary with cellular inhabitants.',
+        path: 'simulations/blood_vessel/',
+        tags: ['biology', 'medical', 'flow', 'planned'],
+        icon: '🩸'
     }
 ];
 
