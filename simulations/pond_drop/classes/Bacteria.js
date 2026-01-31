@@ -5,6 +5,12 @@ export class Bacteria {
         this.vx = (Math.random() - 0.5) * 0.5;
         this.vy = (Math.random() - 0.5) * 0.5;
         this.type = 'bacteria';
+        this.color = 0xFFFFFF; // For particle burst color
+
+        // Randomized properties - must be set BEFORE draw()
+        this.size = 2 + Math.random() * 2;
+        this.wobbleSpeed = 0.05 + Math.random() * 0.05;
+        this.phase = Math.random() * Math.PI * 2;
 
         // Graphics
         this.graphics = new PIXI.Graphics();
@@ -12,16 +18,11 @@ export class Bacteria {
 
         this.graphics.x = x;
         this.graphics.y = y;
-
-        // Randomized properties
-        this.size = 1 + Math.random() * 2;
-        this.wobbleSpeed = 0.05 + Math.random() * 0.05;
-        this.phase = Math.random() * Math.PI * 2;
     }
 
     draw() {
         this.graphics.clear();
-        this.graphics.beginFill(0xFFFFFF, 0.4); // Translucent white
+        this.graphics.beginFill(0xFFFFFF, 0.5); // Translucent white
         this.graphics.drawCircle(0, 0, this.size);
         this.graphics.endFill();
     }

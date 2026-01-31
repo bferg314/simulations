@@ -190,3 +190,137 @@ input[type="range"] {
 .back-link:hover {
     color: white;
 }
+
+/* Pathogen inject button */
+.tool-btn.pathogen {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.tool-btn.pathogen:hover {
+    background: rgba(34, 197, 94, 0.3);
+    border-color: #22c55e;
+}
+
+.tool-btn.pathogen.active {
+    background: #16a34a;
+    border-color: #16a34a;
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+}
+
+/* Pathogen stat styling */
+.stat-item.pathogen-stat .label {
+    color: #86efac;
+}
+
+.stat-item.pathogen-stat .value {
+    font-weight: 600;
+}
+
+/* Immune system kill counter */
+.stat-item.immune-stat .label {
+    color: #c4b5fd;
+}
+
+.stat-item.immune-stat .value {
+    color: #a78bfa;
+    font-weight: 600;
+}
+
+/* ECG monitor positioning helper */
+.ecg-container {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 5;
+}
+
+/* Effect buttons (Adrenaline, Fever) */
+.effect-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-color);
+}
+
+.effect-btn:hover {
+    transform: scale(1.05);
+}
+
+/* Adrenaline button */
+.effect-btn.adrenaline {
+    background: rgba(249, 115, 22, 0.1);
+    border-color: rgba(249, 115, 22, 0.3);
+}
+
+.effect-btn.adrenaline:hover {
+    background: rgba(249, 115, 22, 0.3);
+    border-color: #f97316;
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+}
+
+.effect-btn.adrenaline.active {
+    background: #f97316;
+    border-color: #f97316;
+    box-shadow: 0 0 25px rgba(249, 115, 22, 0.7);
+    animation: pulse-adrenaline 0.3s infinite alternate;
+}
+
+@keyframes pulse-adrenaline {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.1);
+    }
+}
+
+/* Fever button */
+.effect-btn.fever {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.effect-btn.fever:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+}
+
+.effect-btn.fever.active {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    border-color: #ef4444;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    animation: pulse-fever 1s infinite;
+}
+
+@keyframes pulse-fever {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+    }
+}
+
+/* Temperature stat */
+.stat-item.temp-stat .label {
+    color: #fbbf24;
+}
+
+/* Plaque stat */
+.stat-item.plaque-stat .label {
+    color: #fcd34d;
+}
+
+.stat-item.plaque-stat .value {
+    font-weight: 600;
+}

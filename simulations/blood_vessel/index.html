@@ -35,6 +35,21 @@
                     <button class="tool-btn dangerous" data-tool="cut" title="Incision / Damage">
                         🔪
                     </button>
+                    <button class="tool-btn pathogen" data-tool="inject" title="Inject Pathogen">
+                        🦠
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Body Response</label>
+                <div class="tools">
+                    <button class="effect-btn adrenaline" id="btn-adrenaline" title="Adrenaline Rush">
+                        ⚡
+                    </button>
+                    <button class="effect-btn fever" id="btn-fever" title="Toggle Fever">
+                        🔥
+                    </button>
                 </div>
             </div>
 
@@ -52,9 +67,25 @@
                     <span class="label">O₂ Saturation</span>
                     <span class="value" id="val-o2">98%</span>
                 </div>
+                <div class="stat-item temp-stat">
+                    <span class="label">Temperature</span>
+                    <span class="value" id="val-temp">98.6°F</span>
+                </div>
                 <div class="stat-item">
-                    <span class="label">Hemostatis</span>
+                    <span class="label">Hemostasis</span>
                     <span class="value" id="val-status">Normal</span>
+                </div>
+                <div class="stat-item plaque-stat">
+                    <span class="label">Plaque Level</span>
+                    <span class="value" id="val-plaque">0%</span>
+                </div>
+                <div class="stat-item pathogen-stat">
+                    <span class="label">Pathogens</span>
+                    <span class="value" id="count-pathogen">0</span>
+                </div>
+                <div class="stat-item immune-stat">
+                    <span class="label">WBC Kills</span>
+                    <span class="value" id="count-kills">0</span>
                 </div>
             </div>
         </div>

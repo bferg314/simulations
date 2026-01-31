@@ -16,50 +16,91 @@
 <body>
     <div id="canvas-container"></div>
 
-    <div class="ui-overlay">
-        <header>
-            <h1>Pond Drop Microcosm</h1>
-            <p>400x Magnification</p>
-        </header>
+    <!-- Centered Title that fades out -->
+    <div class="title-overlay" id="title-overlay">
+        <h1>Pond Drop Microcosm</h1>
+        <p>400× Magnification</p>
+    </div>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="zoomSlider">Zoom</label>
-                <input type="range" id="zoomSlider" min="0.5" max="2.0" step="0.1" value="1.0">
-            </div>
+    <!-- Floating toolbar at top -->
+    <div class="floating-toolbar">
+        <div class="toolbar-group tools">
+            <button class="tool-btn active" data-tool="cursor" title="Interact">👆</button>
+            <button class="tool-btn" data-tool="grab" title="Pan/Grab">✋</button>
+            <button class="tool-btn" data-tool="pipette" title="Add Nutrients">🧪</button>
+            <button class="tool-btn" data-tool="vortex" title="Create Vortex">🌀</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group speed-controls">
+            <button class="speed-btn" data-speed="0" title="Pause">⏸</button>
+            <button class="speed-btn" data-speed="0.5" title="0.5x">½</button>
+            <button class="speed-btn active" data-speed="1" title="1x">1×</button>
+            <button class="speed-btn" data-speed="2" title="2x">2×</button>
+        </div>
+    </div>
+
+    <!-- Collapsible Controls Panel (left) -->
+    <div class="panel panel-left" id="controls-panel">
+        <button class="panel-toggle" id="controls-toggle">⚙️</button>
+        <div class="panel-content">
+            <div class="panel-header">Controls</div>
 
             <div class="control-group">
-                <label for="lightSlider">Light Intensity</label>
+                <label>☀️ Light <span id="time-display">(Noon)</span></label>
                 <input type="range" id="lightSlider" min="0" max="1.5" step="0.1" value="1.0">
             </div>
 
-            <div class="tools">
-                <button class="tool-btn active" data-tool="cursor" title="Interact/Touch">
-                    👆
-                </button>
-                <button class="tool-btn" data-tool="pipette" title="Add Nutrients">
-                    🧪
-                </button>
+            <div class="control-group">
+                <label>🌡️ Temp</label>
+                <input type="range" id="tempSlider" min="0.3" max="2.0" step="0.1" value="1.0">
             </div>
 
-            <div class="stats">
-                <div class="stat-item">
-                    <span class="label">Bacteria</span>
-                    <span class="value" id="count-bacteria">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="label">Paramecia</span>
-                    <span class="value" id="count-paramecia">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="label">Algae</span>
-                    <span class="value" id="count-algae">0</span>
+            <label class="toggle-label">
+                <input type="checkbox" id="dayNightToggle" checked>
+                <span>🌙 Day/Night</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Collapsible Stats Panel (right) -->
+    <div class="panel panel-right" id="stats-panel">
+        <button class="panel-toggle" id="stats-toggle">📊</button>
+        <div class="panel-content">
+            <div class="panel-header">Population</div>
+
+            <div class="stats-grid">
+                <div class="stat-row"><span class="stat-dot"
+                        style="background:#5588cc"></span><span>Bacteria</span><span class="stat-val"
+                        id="count-bacteria">0</span></div>
+                <div class="stat-row"><span class="stat-dot"
+                        style="background:#88ccff"></span><span>Paramecia</span><span class="stat-val"
+                        id="count-paramecia">0</span></div>
+                <div class="stat-row"><span class="stat-dot" style="background:#88ff88"></span><span>Algae</span><span
+                        class="stat-val" id="count-algae">0</span></div>
+                <div class="stat-row"><span class="stat-dot" style="background:#bb99dd"></span><span>Amoeba</span><span
+                        class="stat-val" id="count-amoeba">0</span></div>
+                <div class="stat-row"><span class="stat-dot" style="background:#66dd66"></span><span>Euglena</span><span
+                        class="stat-val" id="count-euglena">0</span></div>
+                <div class="stat-row"><span class="stat-dot" style="background:#ffaa66"></span><span>Rotifer</span><span
+                        class="stat-val" id="count-rotifer">0</span></div>
+                <div class="stat-row"><span class="stat-dot" style="background:#88ddaa"></span><span>Hydra</span><span
+                        class="stat-val" id="count-hydra">0</span></div>
+            </div>
+
+            <div class="graph-section">
+                <div id="population-graph" class="population-graph"></div>
+                <div class="graph-legend">
+                    <span style="color:#a8c8ff">━ Bacteria</span>
+                    <span style="color:#66dd66">━ Euglena</span>
+                    <span style="color:#ff8866">━ Predators</span>
                 </div>
             </div>
         </div>
-
-        <a href="../../index.html" class="back-link">← Back to Hub</a>
     </div>
+
+    <!-- Back link in corner -->
+    <a href="../../index.html" class="back-link">← Hub</a>
+
 
     <!-- Shaders -->
     <script id="caustic-frag" type="x-shader/x-fragment">

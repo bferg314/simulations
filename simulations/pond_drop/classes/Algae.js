@@ -5,6 +5,7 @@ export class Algae {
         this.vx = (Math.random() - 0.5) * 0.05;
         this.vy = (Math.random() - 0.5) * 0.05; // Very slow drift
         this.type = 'algae';
+        this.color = 0x44aa44; // For particle effects
 
         // Single cell or cluster? Let's do a small cluster of 3-5 cells
         this.graphics = new PIXI.Container();
@@ -36,9 +37,13 @@ export class Algae {
     }
 
     update(delta, bounds, lightIntensity) {
+        // Dampen velocity (returns to gentle drift after being pushed)
+        this.vx *= 0.98;
+        this.vy *= 0.98;
+
         this.x += this.vx * delta;
         this.y += this.vy * delta;
-        this.graphics.rotation += 0.001 * delta;
+        this.graphics.rotation += 0.002 * delta;
 
         // Screen wrap
         if (this.x < -20) this.x = bounds.width + 20;
@@ -49,13 +54,13 @@ export class Algae {
         this.graphics.x = this.x;
         this.graphics.y = this.y;
 
-        // Light reaction: Algae glow/bubble when light is high
-        // Use lightIntensity (0.0 to 1.5) to modulate brightness or scale
-        // For now, just modulation of alpha or color could work, but PIXI filters are heavy.
-        // Let's just pulsate slightly if light is high (photosynthesis active)
+        // Light reaction: Algae glow/bubble when light is high (photosynthesis)
         if (lightIntensity > 0.8) {
-            const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.05 * (lightIntensity - 0.8);
+            const pulse = 1 + Math.sin(Date.now() * 0.008) * 0.08 * (lightIntensity - 0.8);
             this.graphics.scale.set(pulse);
+
+            // Slight upward drift when photosynthesizing (oxygen bubbles lift them)
+            this.vy -= 0.002 * (lightIntensity - 0.8);
         } else {
             this.graphics.scale.set(1);
         }

@@ -5,51 +5,108 @@ export class Paramecium {
         this.angle = Math.random() * Math.PI * 2;
         this.speed = 1 + Math.random();
         this.type = 'paramecium';
+        this.color = 0x88ccff; // For particle effects
+        this.vx = 0;
+        this.vy = 0;
 
         // Graphics container
         this.graphics = new PIXI.Container();
+
+        // Cilia layer (behind body)
+        this.ciliaGraphics = new PIXI.Graphics();
+        this.graphics.addChild(this.ciliaGraphics);
 
         // Body
         this.body = new PIXI.Graphics();
         this.drawBody();
         this.graphics.addChild(this.body);
 
-        // Internal vacuoles (simple circles for now)
+        // Nucleus
+        this.nucleus = new PIXI.Graphics();
+        this.nucleus.beginFill(0x6699cc, 0.4);
+        this.nucleus.drawEllipse(5, 0, 12, 8);
+        this.nucleus.endFill();
+        // Micronucleus
+        this.nucleus.beginFill(0x5588bb, 0.6);
+        this.nucleus.drawCircle(12, -3, 4);
+        this.nucleus.endFill();
+        this.graphics.addChild(this.nucleus);
+
+        // Internal vacuoles (contractile vacuoles)
         this.vacuoles = [];
         for (let i = 0; i < 2; i++) {
             const v = new PIXI.Graphics();
-            v.beginFill(0xFFFFFF, 0.2);
-            v.drawCircle(0, 0, 8);
+            v.beginFill(0xAADDFF, 0.3);
+            v.drawCircle(0, 0, 6);
             v.endFill();
-            v.x = (i === 0 ? -15 : 15);
+            v.x = (i === 0 ? -20 : 25);
             this.graphics.addChild(v);
-            this.vacuoles.push(v);
+            this.vacuoles.push({ graphics: v, phase: Math.random() * Math.PI * 2 });
         }
+
+        // Oral groove
+        this.oralGroove = new PIXI.Graphics();
+        this.oralGroove.lineStyle(2, 0x6699bb, 0.4);
+        this.oralGroove.moveTo(-35, 5);
+        this.oralGroove.quadraticCurveTo(-25, 12, -10, 10);
+        this.graphics.addChild(this.oralGroove);
 
         this.graphics.x = x;
         this.graphics.y = y;
         this.graphics.rotation = this.angle;
 
         // Cilia animation
-        this.ciliaPhase = 0;
+        this.ciliaPhase = Math.random() * Math.PI * 2;
+        this.ciliaCount = 24;
     }
 
     drawBody() {
         this.body.clear();
-        this.body.lineStyle(2, 0x88ccff, 0.3);
-        this.body.beginFill(0x88ccff, 0.1);
-        // Oval shape
-        this.body.drawEllipse(0, 0, 40, 20);
+        // Outer membrane
+        this.body.lineStyle(1.5, 0xaaddff, 0.5);
+        this.body.beginFill(0x88ccff, 0.15);
+        // Slipper shape (asymmetric oval)
+        this.body.moveTo(-38, 0);
+        this.body.bezierCurveTo(-38, -18, -10, -22, 10, -18);
+        this.body.bezierCurveTo(30, -14, 40, -5, 40, 0);
+        this.body.bezierCurveTo(40, 5, 30, 14, 10, 18);
+        this.body.bezierCurveTo(-10, 22, -38, 18, -38, 0);
         this.body.endFill();
+    }
 
-        // Cilia using simple dashed line or just texture? 
-        // For procedural, let's draw many small lines around the perimeter in update() or just once?
-        // Let's just draw a fuzzy stroke for MVP
-        this.body.lineStyle(4, 0x88ccff, 0.1);
-        this.body.drawEllipse(0, 0, 42, 22);
+    drawCilia() {
+        this.ciliaGraphics.clear();
+        this.ciliaGraphics.lineStyle(1, 0xaaddff, 0.4);
+
+        // Draw cilia around the perimeter
+        for (let i = 0; i < this.ciliaCount; i++) {
+            const t = i / this.ciliaCount;
+            const angle = t * Math.PI * 2;
+
+            // Ellipse perimeter point
+            const rx = 42;
+            const ry = 22;
+            const px = Math.cos(angle) * rx;
+            const py = Math.sin(angle) * ry;
+
+            // Cilia wave animation
+            const waveOffset = Math.sin(this.ciliaPhase + i * 0.8) * 0.5;
+            const ciliaLength = 6 + Math.sin(this.ciliaPhase * 2 + i) * 2;
+
+            // Outward direction with wave
+            const nx = Math.cos(angle + waveOffset) * ciliaLength;
+            const ny = Math.sin(angle + waveOffset) * ciliaLength;
+
+            this.ciliaGraphics.moveTo(px, py);
+            this.ciliaGraphics.lineTo(px + nx, py + ny);
+        }
     }
 
     update(delta, bounds, lightIntensity, entities) {
+        // Animate cilia
+        this.ciliaPhase += 0.15 * delta * (this.speed + 0.5);
+        this.drawCilia();
+
         // AI: Find nearest food (bacteria)
         let nearestFood = null;
         let minDist = 200; // Visualization range
@@ -81,15 +138,19 @@ export class Paramecium {
             while (diff > Math.PI) diff -= Math.PI * 2;
 
             this.angle += diff * 0.05 * delta;
-            this.speed = 1.5 + Math.random(); // Sprint
+            this.speed = 1.5 + Math.random() * 0.5; // Sprint
         } else {
             // Wander
-            this.angle += (Math.sin(Date.now() * 0.002) * 0.05);
-            this.speed = 0.8 + Math.random() * 0.5; // Cruise
+            this.angle += (Math.sin(Date.now() * 0.002 + this.x * 0.01) * 0.03);
+            this.speed = 0.8 + Math.random() * 0.3; // Cruise
         }
 
-        this.x += Math.cos(this.angle) * this.speed * delta;
-        this.y += Math.sin(this.angle) * this.speed * delta;
+        // Apply velocity from external forces (like push interaction)
+        this.vx *= 0.95;
+        this.vy *= 0.95;
+
+        this.x += Math.cos(this.angle) * this.speed * delta + this.vx * delta;
+        this.y += Math.sin(this.angle) * this.speed * delta + this.vy * delta;
 
         // Screen wrap
         if (this.x < -50) this.x = bounds.width + 50;
@@ -102,15 +163,18 @@ export class Paramecium {
         this.graphics.y = this.y;
         this.graphics.rotation = this.angle;
 
-        // Animate vacuoles (pulsing)
-        this.vacuoles.forEach((v, i) => {
-            v.scale.set(0.8 + Math.sin(Date.now() * 0.005 + i) * 0.2);
+        // Animate vacuoles (contractile - pulsing like pumping water)
+        this.vacuoles.forEach((vacuole, i) => {
+            vacuole.phase += 0.08 * delta;
+            const pulse = 0.6 + Math.abs(Math.sin(vacuole.phase)) * 0.6;
+            vacuole.graphics.scale.set(pulse);
         });
 
         // Return nearest food if we "ate" it (collision)
-        if (nearestFood && minDist < 15) {
+        if (nearestFood && minDist < 20) {
             return nearestFood;
         }
         return null;
     }
 }
+
