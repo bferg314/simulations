@@ -13,6 +13,8 @@ const CONFIG = {
     treeCount: 50,
     grassCount: 4000,
     rockCount: 60,
+    butterflyCount: 15,
+    shrubCount: 40,
     timeOfDay: 0, // 0..1
     autoCycle: true,
     bloomStrength: 0.4,
@@ -180,6 +182,90 @@ class Firefly {
 
 const fireflies = [];
 
+// --- MAGIC BURST SYSTEM ---
+class MagicBurst {
+    constructor(scene) {
+        this.maxParticles = 500;
+        this.particles = [];
+        this.geometry = new THREE.IcosahedronGeometry(0.05, 0);
+        this.material = new THREE.MeshStandardMaterial({
+            color: 0x00ffff,
+            emissive: 0x00ffff,
+            emissiveIntensity: 2,
+            transparent: true,
+            opacity: 1
+        });
+        this.mesh = new THREE.InstancedMesh(this.geometry, this.material, this.maxParticles);
+        this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        scene.add(this.mesh);
+
+        this.dummy = new THREE.Object3D();
+        this.light = new THREE.PointLight(0x00ffff, 0, 10);
+        scene.add(this.light);
+
+        this.ripplePos = new THREE.Vector3();
+        this.rippleTime = -100;
+    }
+
+    spawn(pos) {
+        this.ripplePos.copy(pos);
+        this.rippleTime = clock.getElapsedTime();
+
+        this.light.position.copy(pos);
+        this.light.intensity = 10;
+
+        for (let i = 0; i < 50; i++) {
+            const p = {
+                pos: pos.clone(),
+                vel: new THREE.Vector3(
+                    (Math.random() - 0.5) * 5,
+                    Math.random() * 5 + 2,
+                    (Math.random() - 0.5) * 5
+                ),
+                scale: 1 + Math.random() * 2,
+                life: 1.0,
+                decay: 0.5 + Math.random() * 0.5
+            };
+            this.particles.push(p);
+            if (this.particles.length > this.maxParticles) this.particles.shift();
+        }
+    }
+
+    update(dt) {
+        this.light.intensity *= 0.95;
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.life -= p.decay * dt;
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+                continue;
+            }
+            p.vel.y -= 9.8 * dt * 0.5; // Gravity
+            p.pos.addScaledVector(p.vel, dt);
+        }
+
+        // Update InstancedMesh
+        for (let i = 0; i < this.maxParticles; i++) {
+            if (i < this.particles.length) {
+                const p = this.particles[i];
+                this.dummy.position.copy(p.pos);
+                const s = p.life * p.scale;
+                this.dummy.scale.set(s, s, s);
+                this.dummy.updateMatrix();
+                this.mesh.setMatrixAt(i, this.dummy.matrix);
+            } else {
+                this.dummy.scale.set(0, 0, 0);
+                this.dummy.updateMatrix();
+                this.mesh.setMatrixAt(i, this.dummy.matrix);
+            }
+        }
+        this.mesh.instanceMatrix.needsUpdate = true;
+    }
+}
+
+const magicSystem = new MagicBurst(scene);
+
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
@@ -189,25 +275,87 @@ window.addEventListener('pointerdown', (event) => {
 
     raycaster.setFromCamera(pointer, camera);
 
-    // Raycast against an invisible plane at z=0 relative to camera? 
-    // Or just project a point out?
-    // Let's raycast against ground first, if hit, spawn above it.
-    // If not hit (sky), spawn at fixed distance.
-
     const intersects = raycaster.intersectObject(ground);
-    let targetPos;
-
     if (intersects.length > 0) {
-        targetPos = intersects[0].point;
-        targetPos.y += 2 + Math.random() * 3; // Hover above ground
-    } else {
-        // Spawn in air
-        targetPos = new THREE.Vector3();
-        raycaster.ray.at(15, targetPos); // 15 units out
+        magicSystem.spawn(intersects[0].point);
+    }
+});
+
+// --- BUTTERFLIES ---
+class Butterfly {
+    constructor(scene) {
+        this.scene = scene;
+        this.group = new THREE.Group();
+
+        // Wings
+        const wingGeo = new THREE.PlaneGeometry(0.2, 0.2);
+        const wingMat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color().setHSL(Math.random(), 0.8, 0.6),
+            side: THREE.DoubleSide,
+            roughness: 0.5,
+            metalness: 0.2
+        });
+
+        this.leftWing = new THREE.Mesh(wingGeo, wingMat);
+        this.leftWing.position.x = -0.1;
+        this.group.add(this.leftWing);
+
+        this.rightWing = new THREE.Mesh(wingGeo, wingMat);
+        this.rightWing.position.x = 0.1;
+        this.group.add(this.rightWing);
+
+        // Position
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random() * 30;
+        this.group.position.set(
+            Math.cos(angle) * r,
+            2 + Math.random() * 5,
+            Math.sin(angle) * r
+        );
+
+        scene.add(this.group);
+        this.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 1,
+            (Math.random() - 0.5) * 2
+        );
+        this.flapSpeed = 10 + Math.random() * 10;
+        this.timeOffset = Math.random() * 100;
     }
 
-    fireflies.push(new Firefly(scene, targetPos));
-});
+    update(dt, time) {
+        // Flap
+        const flap = Math.sin(time * this.flapSpeed) * 1.2;
+        this.leftWing.rotation.y = flap;
+        this.rightWing.rotation.y = -flap;
+
+        // Wander
+        this.velocity.x += Math.sin(time + this.timeOffset) * 0.1;
+        this.velocity.z += Math.cos(time + this.timeOffset) * 0.1;
+        this.velocity.y += Math.sin(time * 0.5 + this.timeOffset) * 0.05;
+
+        // Speed limit
+        this.velocity.clampLength(0, 2);
+
+        this.group.position.addScaledVector(this.velocity, dt);
+
+        // Orient towards movement
+        this.group.lookAt(this.group.position.clone().add(this.velocity));
+
+        // Boundary check (keep them within reasonable area)
+        const dist = this.group.position.length();
+        if (dist > 45) {
+            this.velocity.addScaledVector(this.group.position, -0.01);
+        }
+        if (this.group.position.y < 1) this.velocity.y += 0.1;
+        if (this.group.position.y > 10) this.velocity.y -= 0.1;
+    }
+}
+
+const butterflies = [];
+for (let i = 0; i < CONFIG.butterflyCount; i++) {
+    butterflies.push(new Butterfly(scene));
+}
 
 
 // Utility to scatter objects
@@ -252,6 +400,30 @@ const rockMat = new THREE.MeshStandardMaterial({
 });
 scatterObjects(rockGeo, rockMat, CONFIG.rockCount, [0.3, 0.8]);
 
+// 1.5 Shrubs
+function createShrubGeometry() {
+    const geometries = [];
+    const count = 5;
+    for (let i = 0; i < count; i++) {
+        const size = 0.4 + Math.random() * 0.4;
+        const geo = new THREE.IcosahedronGeometry(size, 0);
+        geo.translate(
+            (Math.random() - 0.5) * 0.5,
+            size * 0.5,
+            (Math.random() - 0.5) * 0.5
+        );
+        geometries.push(geo);
+    }
+    return BufferGeometryUtils.mergeGeometries(geometries);
+}
+const shrubGeo = createShrubGeometry();
+const shrubMat = new THREE.MeshStandardMaterial({
+    color: 0x3d5a2d,
+    roughness: 0.9,
+    flatShading: true
+});
+scatterObjects(shrubGeo, shrubMat, CONFIG.shrubCount, [0.8, 1.5]);
+
 // 2. Grass
 // Simple blade geometry
 const bladeGeo = new THREE.BufferGeometry();
@@ -276,9 +448,13 @@ const grassMesh = scatterObjects(bladeGeo, grassMat, CONFIG.grassCount, [0.5, 1.
 grassMat.onBeforeCompile = (shader) => {
     shader.uniforms.time = { value: 0 };
     shader.uniforms.windStrength = { value: CONFIG.windSpeed };
+    shader.uniforms.ripplePos = { value: magicSystem.ripplePos };
+    shader.uniforms.rippleTime = { value: magicSystem.rippleTime };
     shader.vertexShader = `
         uniform float time;
         uniform float windStrength;
+        uniform vec3 ripplePos;
+        uniform float rippleTime;
         ${shader.vertexShader}
     `;
     shader.vertexShader = shader.vertexShader.replace(
@@ -287,6 +463,16 @@ grassMat.onBeforeCompile = (shader) => {
         #include <begin_vertex>
         float grassBend = transformed.y * 0.5; // Top bends more
         transformed.x += sin(time * 3.0 + instanceMatrix[3][0]*2.0) * windStrength * 0.3 * grassBend;
+        
+        // Ripple effect
+        float dist = distance(instanceMatrix[3].xyz, ripplePos);
+        float rAge = time - rippleTime;
+        if (rAge < 2.0) {
+            float wave = sin(dist * 2.0 - rAge * 10.0);
+            float mask = exp(-dist * 0.2) * (1.0 - rAge * 0.5);
+            transformed.y += wave * mask * 1.5 * grassBend;
+            transformed.xz += wave * mask * 0.5 * grassBend;
+        }
         `
     );
     grassMat.userData.shader = shader;
@@ -327,10 +513,14 @@ const treeMaterial = new THREE.MeshStandardMaterial({
 treeMaterial.onBeforeCompile = (shader) => {
     shader.uniforms.time = { value: 0 };
     shader.uniforms.windStrength = { value: CONFIG.windSpeed };
+    shader.uniforms.ripplePos = { value: magicSystem.ripplePos };
+    shader.uniforms.rippleTime = { value: magicSystem.rippleTime };
 
     shader.vertexShader = `
         uniform float time;
         uniform float windStrength;
+        uniform vec3 ripplePos;
+        uniform float rippleTime;
         ${shader.vertexShader}
     `;
 
@@ -345,6 +535,16 @@ treeMaterial.onBeforeCompile = (shader) => {
         // Quadratic bend
         transformed.x += wave * windStrength * 0.05 * heightFactor * heightFactor;
         transformed.z += cos(time * 1.2) * windStrength * 0.02 * heightFactor;
+
+        // Ripple reaction
+        float dist = distance(instanceMatrix[3].xyz, ripplePos);
+        float rAge = time - rippleTime;
+        if (rAge < 2.0) {
+            float rWave = sin(dist * 1.5 - rAge * 8.0);
+            float rMask = exp(-dist * 0.1) * (1.0 - rAge * 0.5) * heightFactor * 0.5;
+            transformed.x += rWave * rMask * 2.0;
+            transformed.z += rWave * rMask * 2.0;
+        }
         `
     );
 
@@ -385,6 +585,8 @@ const tapPhy = pane.addTab({ pages: [{ title: 'World' }, { title: 'Post-Process'
 
 tapPhy.pages[0].addBinding(CONFIG, 'dayDuration', { min: 10, max: 120 });
 tapPhy.pages[0].addBinding(CONFIG, 'windSpeed', { min: 0, max: 5 });
+tapPhy.pages[0].addBinding(CONFIG, 'butterflyCount', { min: 0, max: 100, step: 1 });
+tapPhy.pages[0].addBinding(CONFIG, 'shrubCount', { min: 0, max: 200, step: 1 });
 tapPhy.pages[0].addBinding(CONFIG, 'autoCycle');
 tapPhy.pages[0].addBinding(CONFIG, 'timeOfDay', { min: 0, max: 1, label: 'Time (0-1)' });
 
@@ -475,29 +677,29 @@ function animate() {
 
     updateEnvironment(time);
 
-    // Update Shaders
-    const uniforms = { time: { value: time }, windStrength: { value: CONFIG.windSpeed } };
+    // Update system effects
+    magicSystem.update(delta);
 
+    // Update Shaders
     if (treeMaterial.userData.shader) {
         treeMaterial.userData.shader.uniforms.time.value = time;
         treeMaterial.userData.shader.uniforms.windStrength.value = CONFIG.windSpeed;
+        treeMaterial.userData.shader.uniforms.rippleTime.value = magicSystem.rippleTime;
     }
 
     if (grassMat.userData.shader) {
         grassMat.userData.shader.uniforms.time.value = time;
         grassMat.userData.shader.uniforms.windStrength.value = CONFIG.windSpeed;
+        grassMat.userData.shader.uniforms.rippleTime.value = magicSystem.rippleTime;
     }
-
-    // Update Fireflies
-    const dt = clock.getDelta(); // Note: animate already called getDelta earlier? 
-    // Actually animate() calls getDelta in line 391. 
-    // Be careful calling it twice. 
-    // Fix: line 391 defines delta. Use that.
 
     fireflies.forEach(f => f.update(delta, time));
     for (let i = fireflies.length - 1; i >= 0; i--) {
         if (!fireflies[i].alive) fireflies.splice(i, 1);
     }
+
+    // Update Butterflies
+    butterflies.forEach(b => b.update(delta, time));
 
     composer.render();
 }

@@ -74,6 +74,26 @@ const simulations = [
     }
 ];
 
+// Bizarre Color Palettes
+const palettes = [
+    { primary: '#38bdf8', secondary: '#8b5cf6', accent: '#f43f5e', bg: '#0f172a' },
+    { primary: '#fbbf24', secondary: '#ec4899', accent: '#06b6d4', bg: '#1e1b4b' },
+    { primary: '#22c55e', secondary: '#f97316', accent: '#a855f7', bg: '#111827' },
+    { primary: '#ef4444', secondary: '#0ea5e9', accent: '#facc15', bg: '#171717' },
+    { primary: '#6366f1', secondary: '#10b981', accent: '#f472b6', bg: '#020617' },
+    { primary: '#84cc16', secondary: '#8b5cf6', accent: '#f97316', bg: '#082f49' },
+    { primary: '#f43f5e', secondary: '#fbbf24', accent: '#22c55e', bg: '#450a0a' }
+];
+
+function applyRandomPalette() {
+    const palette = palettes[Math.floor(Math.random() * palettes.length)];
+    const root = document.documentElement;
+    root.style.setProperty('--primary-color', palette.primary);
+    root.style.setProperty('--secondary-color', palette.secondary);
+    root.style.setProperty('--accent-color', palette.accent);
+    root.style.setProperty('--bg-color', palette.bg);
+}
+
 // DOM Elements
 const grid = document.getElementById('simulationGrid');
 const searchInput = document.getElementById('searchInput');
@@ -93,7 +113,11 @@ function renderSimulations(list) {
     list.forEach((sim, index) => {
         const card = document.createElement('div');
         card.className = 'simulation-card';
-        card.style.animationDelay = `${index * 100}ms`; // Staggered animation
+
+        // Random slight rotation for bizarre effect
+        const rotation = (Math.random() * 4 - 2).toFixed(2);
+        card.style.transform = `rotate(${rotation}deg)`;
+        card.style.animationDelay = `${index * 100}ms`;
 
         card.innerHTML = `
             <div class="card-image-placeholder">
@@ -102,13 +126,11 @@ function renderSimulations(list) {
             <div class="card-content">
                 <h2 class="card-title">${sim.title}</h2>
                 <p class="card-description">${sim.description}</p>
-                <div class="tags" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <div class="tags">
                     ${sim.tags.map(tag => `
-                        <span style="background: rgba(255,255,255,0.1); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; color: #94a3b8;">#${tag}</span>
+                        <span class="tag">#${tag}</span>
                     `).join('')}
                 </div>
-                <!-- Note: In production on GitHub Pages, we need to handle relative paths carefully. 
-                     For now, we assume simple relative linking. -->
                 <a href="${sim.path}" class="launch-btn">Launch Simulation</a>
             </div>
         `;
@@ -139,5 +161,6 @@ searchInput.addEventListener('input', (e) => {
 
 // Initial Render
 document.addEventListener('DOMContentLoaded', () => {
+    applyRandomPalette();
     renderSimulations(simulations);
 });
