@@ -36,7 +36,7 @@ A pixel-art style simulation of an ant colony digging tunnels and exploring.
 - **Tech**: Canvas API, Cellular Automata
 - **Features**: Digging mechanics, pheromone trails
 
-## � Biological Simulations (New!)
+## 🔬 Biological Simulations (New!)
 Interactive 2D simulations exploring the microscopic world.
  
 ### 💧 Pond Drop Microcosm

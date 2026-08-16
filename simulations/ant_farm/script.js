@@ -755,7 +755,7 @@ btn.on('click', () => {
 // Interaction: Drop Sugar (middle-click to place food)
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-const planeMesh = scene.children.find(c => c.geometry.type === 'PlaneGeometry' && c.geometry.parameters.width === 40);
+const planeMesh = scene.children.find(c => c.geometry?.type === 'PlaneGeometry' && c.geometry.parameters.width === 40);
 
 window.addEventListener('pointerdown', (e) => {
     // Only respond to middle-click (button 1) for food placement

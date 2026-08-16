@@ -5,6 +5,7 @@ const simulations = [
         title: 'Floral Growth',
         description: 'Watch procedural flowers grow, bloom, and return to the earth in a mesmerizing cycle of life.',
         path: 'simulations/flowers/',
+        thumb: 'assets/thumbs/flowers.jpg',
         tags: ['nature', 'procedural', 'calm'],
         icon: '🌸'
     },
@@ -13,6 +14,7 @@ const simulations = [
         title: 'Galactic Voyage',
         description: 'Embark on an infinite journey through procedurally generated star fields and galaxy formations.',
         path: 'simulations/space/',
+        thumb: 'assets/thumbs/space.jpg',
         tags: ['space', 'particles', 'infinite'],
         icon: '🌌'
     },
@@ -21,6 +23,7 @@ const simulations = [
         title: 'Whispering Trees',
         description: 'Observe ancient trees swaying in the wind as the day turns to night and the cycle continues.',
         path: 'simulations/trees/',
+        thumb: 'assets/thumbs/trees.jpg',
         tags: ['nature', 'atmospheric', 'day-night'],
         icon: '🌳'
     },
@@ -29,6 +32,7 @@ const simulations = [
         title: 'Neon Jellyfish',
         description: 'Deep sea bioluminescent procedural lifeforms with physics-based tentacles.',
         path: 'simulations/jellyfish/',
+        thumb: 'assets/thumbs/jellyfish.jpg',
         tags: ['water', 'creatures', 'physics'],
         icon: '🪼'
     },
@@ -37,6 +41,7 @@ const simulations = [
         title: 'Digital Aquarium',
         description: 'An ecosystem of 150 autonomous fish driven by the Boids flocking algorithm.',
         path: 'simulations/aquarium/',
+        thumb: 'assets/thumbs/aquarium.jpg',
         tags: ['ai', 'nature', 'flocking'],
         icon: '🐠'
     },
@@ -45,6 +50,7 @@ const simulations = [
         title: 'Ant Colony',
         description: 'A pixel-art style simulation of an ant colony digging tunnels and exploring.',
         path: 'simulations/ant_farm/',
+        thumb: 'assets/thumbs/ant_farm.jpg',
         tags: ['pixel-art', 'calm', 'automata'],
         icon: '🐜'
     },
@@ -53,7 +59,8 @@ const simulations = [
         title: 'Pond Drop Microcosm',
         description: 'A single drop of pond water teeming with life across multiple trophic levels.',
         path: 'simulations/pond_drop/',
-        tags: ['microscopic', 'biology', 'ecosystem', 'planned'],
+        thumb: 'assets/thumbs/pond_drop.jpg',
+        tags: ['microscopic', 'biology', 'ecosystem'],
         icon: '💧'
     },
     {
@@ -61,7 +68,8 @@ const simulations = [
         title: 'Soil Rhizosphere',
         description: 'Hidden fungal internet and bacterial cities around plant roots.',
         path: 'simulations/soil_rhizosphere/',
-        tags: ['biology', 'fungi', 'underground', 'planned'],
+        thumb: 'assets/thumbs/soil_rhizosphere.jpg',
+        tags: ['biology', 'fungi', 'underground'],
         icon: '🌱'
     },
     {
@@ -69,7 +77,8 @@ const simulations = [
         title: 'Blood Vessel Ecology',
         description: 'Flowing environment inside a capillary with cellular inhabitants.',
         path: 'simulations/blood_vessel/',
-        tags: ['biology', 'medical', 'flow', 'planned'],
+        thumb: 'assets/thumbs/blood_vessel.jpg',
+        tags: ['biology', 'medical', 'flow'],
         icon: '🩸'
     }
 ];
@@ -115,13 +124,15 @@ function renderSimulations(list) {
         card.className = 'simulation-card';
 
         // Random slight rotation for bizarre effect
-        const rotation = (Math.random() * 4 - 2).toFixed(2);
+        const rotation = (Math.random() * 2 - 1).toFixed(2);
         card.style.transform = `rotate(${rotation}deg)`;
         card.style.animationDelay = `${index * 100}ms`;
 
         card.innerHTML = `
             <div class="card-image-placeholder">
-                ${sim.icon}
+                <img class="card-thumb" src="${sim.thumb}" alt="" loading="lazy"
+                     onerror="this.remove()">
+                <span class="card-icon">${sim.icon}</span>
             </div>
             <div class="card-content">
                 <h2 class="card-title">${sim.title}</h2>
@@ -163,4 +174,5 @@ searchInput.addEventListener('input', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     applyRandomPalette();
     renderSimulations(simulations);
+    document.getElementById('footerYear').textContent = new Date().getFullYear();
 });
