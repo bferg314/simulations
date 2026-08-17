@@ -4,67 +4,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐜</text></svg>">
-    <title>Ant Farm | Simulation Hub</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #3e2723;
-        }
-
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
-        }
-
-        .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: rgba(255, 255, 255, 0.7);
-            text-decoration: none;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.9rem;
-            z-index: 100;
-            padding: 8px 16px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 20px;
-            backdrop-filter: blur(5px);
-            transition: all 0.3s;
-        }
-
-        .back-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-    </style>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐜</text></svg>">
+    <title>Ant Colony | Simulation Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <script type="importmap">
         {
             "imports": {
                 "three": "../../vendor/three/three.module.js",
-                "three/addons/": "../../vendor/three/addons/",
-                "tweakpane": "../../vendor/tweakpane/tweakpane.min.js"
+                "three/addons/": "../../vendor/three/addons/"
             }
         }
     </script>
 </head>
 
 <body>
-    <a href="../../index.html" class="back-btn">← Back to Hub</a>
-    <div id="ui-layer"
-        style="position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.8); font-family: 'Inter', sans-serif; pointer-events: none; user-select: none;">
-        <div style="background: rgba(0,0,0,0.6); padding: 15px; border-radius: 12px; backdrop-filter: blur(4px);">
-            <h3 style="margin: 0 0 10px 0; font-size: 1rem; color: #fff;">🐜 Colony Controls</h3>
-            <ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6;">
-                <li><strong>Scroll</strong> to Zoom In/Out</li>
-                <li><strong>Left-Click + Drag</strong> to Pan</li>
-                <li><strong>Right-Click + Drag</strong> to Rotate</li>
-                <li><strong>Middle-Click</strong> to Drop Food</li>
-            </ul>
+    <div id="canvas-container"></div>
+
+    <div class="title-overlay">
+        <h1>Ant Colony</h1>
+        <p>A founding queen</p>
+    </div>
+
+    <!-- Tools -->
+    <div class="floating-toolbar">
+        <div class="toolbar-group">
+            <button class="tool-btn active" data-tool="pan" title="Pan / Zoom">✋</button>
+            <button class="tool-btn" data-tool="food" title="Scatter food">🍬</button>
+            <button class="tool-btn" data-tool="dig" title="Excavate soil">⛏️</button>
+            <button class="tool-btn" data-tool="fill" title="Backfill soil">🧱</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+            <button class="speed-btn" data-speed="0" title="Pause">⏸</button>
+            <button class="speed-btn" data-speed="1" title="1×">1×</button>
+            <button class="speed-btn active" data-speed="2" title="2×">2×</button>
+            <button class="speed-btn" data-speed="6" title="6×">6×</button>
+            <button class="speed-btn" data-speed="16" title="16×">16×</button>
         </div>
     </div>
-    <div id="canvas-container"></div>
+
+    <!-- Controls -->
+    <div class="panel panel-left" id="left-panel">
+        <button class="panel-toggle" id="left-toggle">⚙️</button>
+        <div class="panel-content">
+            <div class="panel-header">Environment</div>
+
+            <label class="toggle-label">
+                <input type="checkbox" id="rainToggle"> 🌧️ Rainfall
+            </label>
+
+            <div class="control-group">
+                <label>Rain intensity <span class="value-display" id="rain-display">0.35</span></label>
+                <input type="range" id="rainSlider" min="0.05" max="1" step="0.05" value="0.35">
+            </div>
+
+            <div class="control-group">
+                <label>Food abundance <span class="value-display" id="food-display">0.050</span></label>
+                <input type="range" id="foodSlider" min="0" max="0.12" step="0.005" value="0.05">
+            </div>
+
+            <div class="panel-header">Debug</div>
+            <label class="toggle-label">
+                <input type="checkbox" id="pheroToggle"> 🧭 Show pheromone trails
+            </label>
+        </div>
+    </div>
+
+    <!-- Colony stats -->
+    <div class="panel panel-right" id="right-panel">
+        <button class="panel-toggle" id="right-toggle">📊</button>
+        <div class="panel-content">
+            <div class="panel-header">Colony</div>
+            <div class="stats-grid">
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#e0d4c2"></span>
+                    <span class="label">Status</span>
+                    <span class="value" id="stat-status">Founding</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#1a1a1a;border:1px solid #6b5c4a"></span>
+                    <span class="label">Workers</span>
+                    <span class="value" id="stat-population">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#32CD32"></span>
+                    <span class="label">Food store</span>
+                    <span class="value" id="stat-food">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#8B5A2B"></span>
+                    <span class="label">Nest volume</span>
+                    <span class="value" id="stat-tunnel">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#9FD4F0"></span>
+                    <span class="label">Day</span>
+                    <span class="value" id="stat-day">0</span>
+                </div>
+            </div>
+
+            <div class="panel-header">Castes</div>
+            <div class="stats-grid">
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#2b2b2b;border:1px solid #6b5c4a"></span>
+                    <span class="label">Foragers</span>
+                    <span class="value" id="stat-forager">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#6b4f2a"></span>
+                    <span class="label">Nurses</span>
+                    <span class="value" id="stat-nurse">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#4a3b2a"></span>
+                    <span class="label">Diggers</span>
+                    <span class="value" id="stat-digger">0</span>
+                </div>
+            </div>
+
+            <div class="panel-header">Brood</div>
+            <div class="stats-grid">
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#fffff0"></span>
+                    <span class="label">Eggs</span>
+                    <span class="value" id="stat-eggs">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#FFD700"></span>
+                    <span class="label">Larvae</span>
+                    <span class="value" id="stat-larvae">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#E8C39E"></span>
+                    <span class="label">Pupae</span>
+                    <span class="value" id="stat-pupae">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-dot" style="background:#5a4030"></span>
+                    <span class="label">Deaths</span>
+                    <span class="value" id="stat-deaths">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="../../index.html" class="back-link">← Back to Hub</a>
+
     <script type="module" src="script.js"></script>
 </body>
 

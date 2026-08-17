@@ -48,10 +48,10 @@ const simulations = [
     {
         id: 'ant_farm',
         title: 'Ant Colony',
-        description: 'A pixel-art style simulation of an ant colony digging tunnels and exploring.',
+        description: 'A founding queen raises a colony that digs its own nest, forages on pheromone trails, and weathers the rain.',
         path: 'simulations/ant_farm/',
         thumb: 'assets/thumbs/ant_farm.jpg',
-        tags: ['pixel-art', 'calm', 'automata'],
+        tags: ['pixel-art', 'emergent', 'automata', 'colony', 'ecosystem'],
         icon: '🐜'
     },
     {

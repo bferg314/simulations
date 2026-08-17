@@ -32,9 +32,13 @@ An ecosystem of 150 autonomous fish driven by the Boids flocking algorithm.
 - **Features**: Flocking behavior, predator avoidance
 
 ### 🐜 Ant Colony
-A pixel-art style simulation of an ant colony digging tunnels and exploring.
-- **Tech**: Canvas API, Cellular Automata
-- **Features**: Digging mechanics, pheromone trails
+A founding queen sinks a shaft, excavates a royal chamber, and raises a colony behind glass.
+- **Castes**: Foragers, nurses and diggers, reassigned as the colony's needs change
+- **Emergent nest**: Diggers cut galleries and haul spoil to a mound that grows at its angle of repose
+- **Pheromones**: Trails recruit nestmates to food; ants navigate home by dead reckoning
+- **Food economy**: A shared store feeds the brood and sets the queen's laying rate — starve it and the colony collapses
+- **Weather & threats**: Rain floods tunnels and collapses them, and an antlion waits on the surface
+- **Tech**: Canvas ImageData over a Three.js plane, cellular automata
 
 ## 🔬 Biological Simulations (New!)
 Interactive 2D simulations exploring the microscopic world.
