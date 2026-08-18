@@ -12,6 +12,10 @@ class BroodItem {
         this.alive = true;
         this.promoteTo = null;
     }
+
+    // Brood cannot grip anything: it lies where it is put, and the chamber floor
+    // it was laid on keeps being dug away underneath it.
+    settle(world) { world.restItem(this); }
 }
 
 export class Egg extends BroodItem {
@@ -21,8 +25,9 @@ export class Egg extends BroodItem {
         this.hatchAt = between(CONFIG.eggHatch);
     }
 
-    update() {
+    update(world) {
         this.age++;
+        this.settle(world);
         if (this.age > this.hatchAt) {
             this.alive = false;
             this.promoteTo = 'larva';
@@ -40,8 +45,9 @@ export class Larva extends BroodItem {
         this.claimedBy = null;   // nurse currently en route, prevents dogpiling
     }
 
-    update() {
+    update(world) {
         this.age++;
+        this.settle(world);
         this.hunger++;
 
         // Starvation is the mechanism that makes the food economy bite. The
@@ -74,8 +80,9 @@ export class Pupa extends BroodItem {
         this.emergeAt = between(CONFIG.pupaEmerge);
     }
 
-    update() {
+    update(world) {
         this.age++;
+        this.settle(world);
         if (this.age > this.emergeAt) {
             this.alive = false;
             this.promoteTo = 'worker';

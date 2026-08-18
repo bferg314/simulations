@@ -21,9 +21,14 @@ export const CONFIG = {
     pheroMinDeposit: 0.02,  // below this an ant stops laying trail
 
     // --- Food economy ---
-    foodValue: 10,           // store units gained per food item retrieved
-    foodSpawnRate: 0.05,    // chance per tick of a new surface food item
-    foodMax: 90,
+    // Retuned once foragers could actually complete a round trip. On the old
+    // numbers the caste spent its life circling stale trails and delivered
+    // almost nothing, so the income here had to be generous to keep a colony
+    // alive at all; with the trails and the terrain fixed the same figures buried
+    // the nest in a five-figure surplus that nothing could ever spend.
+    foodValue: 5,           // store units gained per food item retrieved
+    foodSpawnRate: 0.03,    // chance per tick of a new surface food item
+    foodMax: 70,
     queenUpkeep: 0.002,     // store units consumed per tick
     workerUpkeep: 0.0003,
     larvaMealCost: 1,

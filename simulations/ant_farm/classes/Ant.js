@@ -45,35 +45,31 @@ export class Ant {
         return t === TYPE_AIR || t === TYPE_WATER;
     }
 
-    // In contact with soil somewhere in the 8-neighbourhood: standing on a
-    // floor, on a slope, or gripping a wall.
-    supported(world, x, y) {
-        for (let n = 0; n < 8; n++) {
-            if (world.isDirt(x + NX[n], y + NY[n])) return true;
-        }
-        return false;
-    }
+    // Within reach of soil: standing on a floor, on a slope, or gripping a wall.
+    supported(world, x, y) { return world.hasGrip(x, y); }
 
-    // Ants grip; they do not fall. Inside the nest a tunnel or chamber wall is
-    // always within reach, so movement is unrestricted. Out in the open they
-    // must stay in contact with the ground, which is what keeps them from
-    // drifting off into the sky.
+    // Ants grip, but they grip *something*: a floor, a slope, a wall, or a
+    // ceiling. Nothing stands in the middle of an open void, above ground or
+    // below it. Exempting the underground — on the grounds that a tunnel wall
+    // is always within reach — is what left ants hanging in mid-air across the
+    // royal chamber, and it also let a laden digger step off the surface into
+    // the open throat of the entrance funnel, from where its "get out"
+    // navigation walked it straight back to the rim: a two-cell see-saw that
+    // pinned most of the digger caste there for good.
     //
-    // An earlier version modelled per-cell gravity instead, and every attempt
-    // to climb was immediately undone by the fall, leaving whole castes
-    // oscillating between two cells forever.
+    // This is a footing test, not gravity. An earlier version modelled per-cell
+    // gravity instead, and every attempt to climb was immediately undone by the
+    // fall, leaving whole castes oscillating between two cells forever.
     walkable(world, x, y) {
-        if (!this.passable(world, x, y)) return false;
-        if (!world.aboveGround(x, y)) return true;
-        return this.supported(world, x, y);
+        return this.passable(world, x, y) && this.supported(world, x, y);
     }
 
     // Safety net for an ant that ends up in open air with nothing to hold —
     // dropped there at spawn, or left hanging when the ground was dug out from
-    // under it. It only fires above ground, so it can never undo a climb
-    // inside the nest.
+    // under it. walkable() already refuses to put an ant in an unsupported cell,
+    // so this only ever runs as recovery, and it stops the moment the ant has
+    // footing again: it cannot undo a climb.
     settle(world) {
-        if (!world.aboveGround(this.x, this.y)) return false;
         if (this.supported(world, this.x, this.y)) return false;
         if (!this.passable(world, this.x, this.y + 1)) return false;
         this.y++;
@@ -126,15 +122,20 @@ export class Ant {
         return true;
     }
 
-    // Walk downhill on a navigation field. Returns false when the ant is not
-    // on the field at all (sealed in), so the caller can fall back.
+    // Walk downhill on a navigation field. Returns false when neither the ant's
+    // cell nor any neighbour is on the field at all (sealed in), so the caller
+    // can fall back.
     followNav(world, field) {
         const here = field[world.idx(this.x, this.y)];
-        if (here === NAV_UNREACHABLE) return false;
         if (here === 0) return true;          // already there
 
         let bestI = -1;
-        let bestD = here;
+        // A cell that was still solid at the last rebuild is off the field even
+        // though the ant is now standing in it — which is the normal state of a
+        // digger in the gallery it just cut. Joining the field from outside it
+        // beats falling through to a blind fallback for the rest of the rebuild
+        // interval.
+        let bestD = here === NAV_UNREACHABLE ? NAV_UNREACHABLE : here;
         let bx = this.x;
         let by = this.y;
         for (let n = 0; n < 8; n++) {
@@ -169,6 +170,9 @@ export class Ant {
     wander(world) {
         if (Math.random() < 0.25) this.dirX = Math.random() > 0.5 ? 1 : -1;
         if (Math.random() < 0.25) this.dirY = Math.random() > 0.5 ? 1 : -1;
+        // Both axes zero is a move onto the ant's own cell, which reports
+        // success and burns the tick.
+        if (this.dirX === 0 && this.dirY === 0) this.dirY = Math.random() > 0.5 ? 1 : -1;
         if (!this.step(world, this.x + this.dirX, this.y + this.dirY)) {
             if (!this.step(world, this.x + this.dirX, this.y)) {
                 this.step(world, this.x, this.y + this.dirY);
@@ -247,23 +251,4 @@ export class Ant {
         }
         return false;
     }
-
-    // Strongest field value among the neighbours. Callers use this to decide
-    // whether a trail is worth following at all, or whether to fall back to
-    // navigating by geometry.
-    fieldPeak(world, field) {
-        let best = 0;
-        for (let n = 0; n < 8; n++) {
-            const v = world.read(field, this.x + NX[n], this.y + NY[n]);
-            if (v > best) best = v;
-        }
-        return best;
-    }
-
-    // Standing in open air directly on top of the ground, wherever the ground
-    // happens to be after digging and dumping have reshaped it.
-    onSurface(world) {
-        return world.isAir(this.x, this.y) && this.y === world.groundTop(this.x) - 1;
-    }
-
 }

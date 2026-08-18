@@ -21,6 +21,10 @@ export class Queen extends Ant {
     update(world, colony) {
         if (!this.preUpdate(world)) return;
 
+        // She is the largest thing in the nest and the one the eye goes to, so
+        // she in particular must never hang in the middle of the chamber.
+        if (this.state === LAY) this.settle(world);
+
         // The royal chamber is the anchor of the home gradient.
         world.deposit(world.home, this.x, this.y, 1);
 
@@ -53,15 +57,26 @@ export class Queen extends Ant {
         this.y++;
     }
 
-    // Ordered list of chamber cells so excavation is animated rather than a
-    // 17x17 block vanishing in a single frame.
+    // Ordered list of chamber cells so excavation is animated rather than the
+    // whole gallery vanishing in a single frame.
+    //
+    // A broad, flat lens rather than the old sphere. Height is the point: a void
+    // taller than four cells has rows in the middle of it that are out of reach
+    // of any wall, so the sphere was a room whose centre nothing could stand in —
+    // the queen hung in the middle of it, the brood hung around her, and nurses
+    // could not cross from the ceiling to the floor. Flat is also what a real
+    // brood gallery looks like.
     buildChamberPlan(world) {
-        const r = 8;
+        const rx = 16;
+        const up = 1;
+        const down = 2;
         const cells = [];
-        for (let dy = -r; dy <= r; dy++) {
-            for (let dx = -r; dx <= r; dx++) {
-                const d = Math.hypot(dx, dy * 1.3);
-                if (d > r) continue;
+        for (let dx = -rx; dx <= rx; dx++) {
+            const taper = Math.sqrt(Math.max(0, 1 - (dx / rx) ** 2));
+            const top = Math.round(up * taper);
+            const bottom = Math.round(down * taper);
+            for (let dy = -top; dy <= bottom; dy++) {
+                const d = Math.hypot(dx, dy * 6);   // dug outward from the centre
                 cells.push({ x: this.x + dx, y: this.y + dy, d });
             }
         }
@@ -103,6 +118,7 @@ export class Queen extends Ant {
             const nx = this.x + (Math.random() > 0.5 ? 1 : -1);
             const ny = this.y + (Math.random() > 0.5 ? 1 : -1);
             if (world.isAir(nx, ny)
+                && world.hasFooting(nx, ny)
                 && Math.abs(nx - world.chamberX) < 7
                 && Math.abs(ny - world.chamberY) < 7) {
                 this.x = nx;

@@ -29,6 +29,11 @@ class Field {
     }
 }
 
+// How deep a dip in the ground line still counts as open air rather than as the
+// inside of the nest. The entrance funnel is cut eighteen cells deep, so this
+// has to clear it.
+const PIT_TOLERANCE = 20;
+
 export const NAV_UNREACHABLE = 65535;
 const NAV_REBUILD = 150;          // ticks between navigation-field rebuilds
 const NAV_NX = [-1, 0, 1, -1, 1, -1, 0, 1];
@@ -49,6 +54,7 @@ export class World {
         this.terrainHeight = new Float32Array(this.width);
         this.columnTop = new Int16Array(this.width);
         this.noise = new Int8Array(this.len);
+        this.soilNear = new Uint8Array(this.len);
 
         this.home = new Field(this.len);
         this.foodField = new Field(this.len);
@@ -87,6 +93,52 @@ export class World {
     // Anything an ant cannot walk through.
     isSolid(x, y) { return this.at(x, y) === TYPE_DIRT; }
 
+    // Soil in the 8-neighbourhood: a floor, slope, wall or ceiling in contact.
+    // Loose items rest only where this holds, so they always look like they are
+    // lying on something.
+    hasFooting(x, y) {
+        for (let n = 0; n < 8; n++) {
+            if (this.isDirt(x + NAV_NX[n], y + NAV_NY[n])) return true;
+        }
+        return false;
+    }
+
+    // Soil within reach — two cells, Chebyshev. This is what an ant needs to
+    // occupy a cell, and it is deliberately looser than hasFooting: at one cell
+    // the middle row of any gallery more than two cells tall is unreachable, so
+    // the royal chamber split into an upper and a lower deck and nurses carrying
+    // meals could not get down to the brood at all. Two cells keeps every ant
+    // visibly against a surface while leaving normal galleries fully walkable.
+    //
+    // Read from a map maintained by set(), because this is the hottest predicate
+    // in the simulation — every ant tests it for several candidate cells a tick.
+    hasGrip(x, y) {
+        if (!this.isValid(x, y)) return false;
+        return this.soilNear[this.idx(x, y)] === 1;
+    }
+
+    // Out-of-bounds counts as soil, matching at(), so the world edges are solid
+    // to hold on to rather than a void ants cannot enter.
+    soilWithin2(x, y) {
+        for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+                const tx = x + dx;
+                const ty = y + dy;
+                if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) return true;
+                if (this.grid[ty * this.width + tx] === TYPE_DIRT) return true;
+            }
+        }
+        return false;
+    }
+
+    rebuildSoilNear(x0 = 0, y0 = 0, x1 = this.width - 1, y1 = this.height - 1) {
+        for (let y = Math.max(0, y0); y <= Math.min(this.height - 1, y1); y++) {
+            for (let x = Math.max(0, x0); x <= Math.min(this.width - 1, x1); x++) {
+                this.soilNear[y * this.width + x] = this.soilWithin2(x, y) ? 1 : 0;
+            }
+        }
+    }
+
     set(x, y, type) {
         if (!this.isValid(x, y)) return;
         const cx = x | 0;
@@ -95,6 +147,12 @@ export class World {
         const prev = this.grid[i];
         if (type === TYPE_WATER && prev !== TYPE_WATER) this.waterList.push(i);
         this.grid[i] = type;
+
+        // Only soil matters to the grip map, so water and air are interchangeable
+        // and a patch is only re-derived when soil actually appears or goes.
+        if ((prev === TYPE_DIRT) !== (type === TYPE_DIRT)) {
+            this.rebuildSoilNear(cx - 2, cy - 2, cx + 2, cy + 2);
+        }
 
         // Keep the live ground line in step with digging and dumping.
         if (type === TYPE_DIRT) {
@@ -132,9 +190,45 @@ export class World {
         return Math.floor(this.terrainHeight[c]);
     }
 
-    // Inclusive: the topmost air cell of a column is where surface ants walk,
-    // and it has to read as outdoors or they never reach the spoil mound.
-    aboveGround(x, y) { return y <= this.skyLine(x); }
+    // Open air: nothing but sky overhead, and not so far down the hole that the
+    // ant has effectively gone inside. The entrance funnel and the antlion's pit
+    // are dents in the ground line, not tunnels, and an ant standing in one is
+    // still outdoors — which the old sky-line-only test denied. It disagreed
+    // with itself across the funnel rim: the lip was outdoors, the cell an ant
+    // had to cross to walk away from it was not, so laden ants stepped in, were
+    // navigated straight back out, and wore that pair of cells out for life.
+    aboveGround(x, y) { return y <= this.outdoorTop(x); }
+
+    // The lowest cell of a column that still counts as outdoors: the top of the
+    // spoil mound, the floor of the funnel bowl, or plain ground — whatever an
+    // ant out in the weather would be standing on. A column the nest has opened
+    // clean through reports its soil top from the bottom of the shaft, which is
+    // no longer a dent in the landscape but a way in, so the outdoors stops at
+    // the ground line there. Seeding the daylight field down the shaft instead
+    // told ants twenty cells underground that they had already reached the
+    // surface, and headOut became a no-op that left them there.
+    outdoorTop(x) {
+        const c = Math.max(0, Math.min(this.width - 1, x | 0));
+        const top = this.columnTop[c];
+        const ground = Math.floor(this.terrainHeight[c]);
+        return top <= ground + PIT_TOLERANCE ? top : ground;
+    }
+
+    // Loose items — brood, seeds, the colony's dead — have no grip at all. They
+    // rise back out of soil tipped on top of them and fall until something holds
+    // them up. Both halves matter: without the fall, every clutch of eggs ended
+    // up hanging in the middle of the chamber as the floor was dug away beneath
+    // it; without the rise, the growing spoil mound swallowed the surface forage,
+    // and the buried seeds still counted against the food cap, so the colony
+    // starved in the middle of ninety meals it could not reach.
+    restItem(item) {
+        if (this.isDirt(item.x, item.y)) {
+            if (item.y > 0) item.y--;
+            return;
+        }
+        if (this.hasFooting(item.x, item.y)) return;
+        if (item.y + 1 < this.height) item.y++;
+    }
 
     recomputeColumnTops() {
         for (let x = 0; x < this.width; x++) {
@@ -158,15 +252,19 @@ export class World {
         }
         this.carveEntrance(this.entranceX);
         this.recomputeColumnTops();
+        this.rebuildSoilNear();
     }
 
-    // A cone-shaped mouth at the surface. A smooth taper matters: each column
-    // is one step deeper than its neighbour, so the walls form a continuous
-    // ramp that ants can walk down and back up. The original stepped shaft left
-    // a sheer 5-cell drop across its whole width with nothing to grip.
+    // A cone-shaped mouth at the surface. A smooth taper matters: each column is
+    // exactly one step deeper than its neighbour, so the walls form a continuous
+    // ramp that ants can walk down and back up. The original stepped shaft left a
+    // sheer 5-cell drop across its whole width with nothing to grip; a cone twice
+    // as deep as it was wide was no better, because a searching ant will climb at
+    // most two cells per column and the bowl held the entire forager caste
+    // sweeping back and forth inside the crater for the rest of their lives.
     carveEntrance(centerX) {
         const half = this.entranceHalf;
-        const maxDepth = 18;
+        const maxDepth = half;
         for (let dx = -half; dx <= half; dx++) {
             const x = (centerX | 0) + dx;
             if (x < 0 || x >= this.width) continue;
@@ -350,12 +448,18 @@ export class World {
             this.navQueue = new Int32Array(len);
         }
 
+        // Route only through cells an ant can actually hold on to. Flooding the
+        // middle of a void as if it were walkable left laden ants following a
+        // gradient into open air and stalling there.
+        const foot = this.soilNear;
+
         const bfs = (field, seed) => {
             field.fill(NAV_UNREACHABLE);
             const q = this.navQueue;
             let head = 0;
             let tail = 0;
             for (const i of seed) {
+                if (!foot[i]) continue;
                 if (field[i] !== 0) { field[i] = 0; q[tail++] = i; }
             }
             while (head < tail) {
@@ -368,17 +472,17 @@ export class World {
                     const ty = y + NAV_NY[n];
                     if (tx < 0 || tx >= W || ty < 0 || ty >= this.height) continue;
                     const j = ty * W + tx;
-                    if (this.grid[j] === TYPE_DIRT || field[j] <= d) continue;
+                    if (this.grid[j] === TYPE_DIRT || !foot[j] || field[j] <= d) continue;
                     field[j] = d;
                     q[tail++] = j;
                 }
             }
         };
 
-        // Out: every open cell at or above the ground line is already outside.
+        // Out: every open cell in the surface skin is already outside.
         const outSeeds = [];
         for (let x = 0; x < W; x++) {
-            const top = this.skyLine(x);
+            const top = this.outdoorTop(x);
             for (let y = Math.max(0, top - 3); y <= top; y++) {
                 const i = y * W + x;
                 if (this.grid[i] !== TYPE_DIRT) outSeeds.push(i);
@@ -386,9 +490,13 @@ export class World {
         }
         bfs(this.distOut, outSeeds);
 
+        // The royal chamber itself, and no more. Seeding a square block around it
+        // put the field's zero region several cells above the roof, where an ant
+        // following it home was told it had arrived while it was still outside —
+        // nurses stood there holding meals until they died of old age.
         const nestSeeds = [];
-        for (let dy = -4; dy <= 4; dy++) {
-            for (let dx = -4; dx <= 4; dx++) {
+        for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -8; dx <= 8; dx++) {
                 const x = this.chamberX + dx;
                 const y = this.chamberY + dy;
                 if (!this.isValid(x, y)) continue;

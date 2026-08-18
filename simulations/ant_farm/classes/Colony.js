@@ -94,9 +94,14 @@ export class Colony {
             return world.repairQueue.shift();
         }
 
+        // The working radius grows with the colony, so a young nest is a tight
+        // cluster of galleries around the shaft and a mature one reaches out
+        // across the tank. A fixed radius meant that once the fringe reached it
+        // there was nothing left to cut anywhere a digger was willing to work.
+        const reach = 30 + this.ants.length;
         for (let attempt = 0; attempt < 12; attempt++) {
             const angle = Math.random() * Math.PI * 2;
-            const radius = 14 + Math.random() * 46;
+            const radius = 14 + Math.random() * reach;
             const x = Math.round(world.chamberX + Math.cos(angle) * radius);
             // Bias downward: galleries spread sideways and sink, never upward
             // into the spoil mound.
@@ -196,9 +201,14 @@ export class Colony {
         if (Math.random() > this.foodSpawnRate) return;
 
         const x = (Math.random() * world.width) | 0;
-        // Lands on whatever the top surface is now, spoil mound included.
+        // Lands on whatever the top surface is now, spoil mound included — but
+        // only where that surface is genuinely outdoors. A column containing the
+        // entrance funnel, or any pit the diggers have opened, reports its ground
+        // top from the bottom of the hole, and seeds were materialising down
+        // there: an inexhaustible larder inside the nest that laid a food trail
+        // through the shaft and held the whole forager caste underground.
         const y = world.groundTop(x);
-        if (y >= world.height) return;
+        if (y >= world.height || y > world.skyLine(x) + 1) return;
         this.food.push(new Food(x, Math.max(2, y - 1)));
     }
 
@@ -206,9 +216,9 @@ export class Colony {
 
     update(world) {
         for (const a of this.ants) a.update(world, this);
-        for (const b of this.brood) b.update();
-        for (const f of this.food) f.update();
-        for (const c of this.corpses) c.update();
+        for (const b of this.brood) b.update(world);
+        for (const f of this.food) f.update(world);
+        for (const c of this.corpses) c.update(world);
         for (const p of this.predators) p.update(world, this);
 
         this.promoteBrood();
