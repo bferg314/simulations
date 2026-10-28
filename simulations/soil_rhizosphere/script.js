@@ -7,6 +7,13 @@ let fungi;
 let bacteria = [];
 let activeTool = 'observe';
 
+// Sugars the root releases per frame, shared by the bacteria crowding it. This
+// sets how many the rhizosphere can feed once the organic matter is gone.
+const ROOT_EXUDATE = 4;
+let exudateShare = 0;
+// Organic mass at the start, the reference for the nutrient reading
+let baselineOrganic = 1;
+
 // Zoom and pan state
 let zoomLevel = 1;
 let panX = 0;
@@ -74,9 +81,11 @@ function draw() {
 
     // Update bacteria with lifecycle
     let newBacteria = [];
+    let nearRoot = 0;
     for (let i = bacteria.length - 1; i >= 0; i--) {
         let b = bacteria[i];
-        b.update(particles, rootSystem);
+        b.update(particles, rootSystem, exudateShare);
+        if (b.nearRoot) nearRoot++;
 
         let offspring = b.tryReproduce();
         if (offspring) {
@@ -91,6 +100,13 @@ function draw() {
         if (bacteria.length < 500) {
             bacteria.push(nb);
         }
+    }
+    // Next frame's exudate is split between everyone at the root now
+    exudateShare = nearRoot > 0 ? ROOT_EXUDATE / nearRoot : 0;
+
+    // Organic matter that has been eaten away is gone
+    if (particles.some(p => p.consumed)) {
+        particles = particles.filter(p => !p.consumed);
     }
 
     // Rendering
@@ -145,15 +161,30 @@ function drawZoomIndicator() {
 
 function initSoil() {
     particles = [];
-    const count = (width * height) / 2000;
-    for (let i = 0; i < count; i++) {
-        particles.push(new SoilParticle(random(width), random(height), random(4, 12)));
-    }
+    fillSoil(0, 0, width, height);
+
+    baselineOrganic = Math.max(1, organicMass());
 
     // Init Bacteria
     bacteria = [];
     for (let i = 0; i < 100; i++) {
         bacteria.push(new Bacteria(random(width), random(height)));
+    }
+}
+
+function organicMass() {
+    let mass = 0;
+    for (let p of particles) {
+        if (p.type === 1) mass += p.size;
+    }
+    return mass;
+}
+
+// Scatter soil over a region at the standard density
+function fillSoil(x0, y0, x1, y1) {
+    const count = ((x1 - x0) * (y1 - y0)) / 2000;
+    for (let i = 0; i < count; i++) {
+        particles.push(new SoilParticle(random(x0, x1), random(y0, y1), random(4, 12)));
     }
 }
 
@@ -314,20 +345,18 @@ function updateStats() {
 
     // Average moisture
     let totalM = 0;
-    let organicCount = 0;
     for (let p of particles) {
         totalM += p.moisture;
-        if (p.type === 1) organicCount++;
     }
 
     let avg = particles.length > 0 ? (totalM / particles.length) * 100 : 0;
     document.getElementById('val-moisture').innerText = `${avg.toFixed(1)}%`;
 
-    // Nutrient level based on organic particle count
+    // Nutrient level: organic matter left, against what the soil started with
     let nutrientLevel = "Low";
-    const organicRatio = particles.length > 0 ? organicCount / particles.length : 0;
-    if (organicRatio > 0.45) nutrientLevel = "High";
-    else if (organicRatio > 0.35) nutrientLevel = "Medium";
+    const organicRatio = organicMass() / baselineOrganic;
+    if (organicRatio > 0.66) nutrientLevel = "High";
+    else if (organicRatio > 0.33) nutrientLevel = "Medium";
 
     const nutrientEl = document.getElementById('val-nutrients');
     nutrientEl.innerText = nutrientLevel;
@@ -347,15 +376,12 @@ function updateStats() {
 }
 
 function windowResized() {
+    // Keep the world; only fill soil into area the bigger window newly shows
+    const oldW = width;
+    const oldH = height;
     resizeCanvas(windowWidth, windowHeight);
-    initSoil();
-    rootSystem = new RootSystem(width / 2, 0);
-    fungi = new FungalNetwork();
-    fungi.attachToRoot(rootSystem);
-    // Reset zoom/pan on resize
-    zoomLevel = 1;
-    panX = 0;
-    panY = 0;
+    if (width > oldW) fillSoil(oldW, 0, width, height);
+    if (height > oldH) fillSoil(0, oldH, Math.min(oldW, width), height);
 }
 
 // Mouse wheel zoom - zoom centered on cursor position
