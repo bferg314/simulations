@@ -104,10 +104,10 @@ export class Rotifer {
         this.wheelPhase += 0.2 * delta * temperature;
         this.drawWheel();
 
-        // Create suction effect - pull nearby bacteria toward mouth
+        // Create suction effect - pull nearby bacteria, algae and detritus toward mouth
         if (entities) {
             for (const e of entities) {
-                if (e.type === 'bacteria' || e.type === 'detritus') {
+                if (e.type === 'bacteria' || e.type === 'algae' || e.type === 'detritus') {
                     const dx = this.x - e.x;
                     const dy = (this.y - this.size * 0.5) - e.y; // Pull toward mouth
                     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -139,7 +139,7 @@ export class Rotifer {
         this.y += this.vy * delta * temperature;
 
         // Lose energy over time
-        this.energy -= 0.02 * delta;
+        this.energy -= 0.01 * delta;
 
         // Screen wrap
         if (this.x < -30) this.x = bounds.width + 30;

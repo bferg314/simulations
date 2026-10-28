@@ -39,3 +39,20 @@
 ## Emergent Possibilities
 
 Population dynamics should emerge naturally—bacteria blooms lead to paramecia population explosions, which crash when food runs out. Algae death from darkness cascades through the system.
+
+## Population Dynamics (as built)
+
+`ecology.js` owns feeding, starvation, decomposition and division; the organism classes only decide how to move and what to catch. Nothing is topped up by script:
+
+- **Energy budgets.** Every organism spends energy to live and dies at zero, leaving detritus. Bacteria, paramecia, amoebae and algae get their budgets from the `LIFE` table; euglena, rotifers and hydra keep their own.
+- **Dissolved nutrients.** Algae leak organic matter while they photosynthesize, and bacteria live mostly on that pool. Decomposition and the pipette add to it.
+- **Detritus** is a finite food source. Bacteria swim toward it and draw it down.
+- **Handling time.** Paramecia and amoebae need time to digest each meal; without it a few paramecia strip the drop bare in seconds.
+- **Dormancy.** Detritus carries spores, cysts and eggs that hatch regardless of the living population, so a species that crashes can come back.
+
+Run it without a browser to check the balance after changing a number:
+
+```bash
+node simulations/pond_drop/tools/headless.mjs 20          # 20 simulated minutes
+node simulations/pond_drop/tools/headless.mjs 5 --dark    # lamp off: algae die back
+```

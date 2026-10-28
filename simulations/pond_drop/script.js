@@ -6,6 +6,7 @@ import { Euglena } from './classes/Euglena.js';
 import { Rotifer } from './classes/Rotifer.js';
 import { Detritus } from './classes/Detritus.js';
 import { Hydra } from './classes/Hydra.js';
+import { Ecology } from './ecology.js';
 
 // Configuration
 const CONFIG = {
@@ -19,10 +20,19 @@ const CONFIG = {
     backgroundColor: 0x051a26,
     zoomedBackgroundColor: 0x0a2e3d,
     dayNightCycleSpeed: 0.0005,
-    maxEuglena: 30,
-    maxRotifer: 12,
-    maxHydra: 5,
 };
+
+// Population dynamics live in ecology.js; these build each organism for it.
+const ecology = new Ecology({
+    bacteria: (x, y) => new Bacteria(x, y),
+    paramecium: (x, y) => new Paramecium(x, y),
+    algae: (x, y) => new Algae(x, y),
+    amoeba: (x, y) => new Amoeba(x, y),
+    euglena: (x, y) => new Euglena(x, y),
+    rotifer: (x, y) => new Rotifer(x, y),
+    hydra: (x, y) => new Hydra(x, y),
+    detritus: (x, y, size) => new Detritus(x, y, size),
+});
 
 // State
 const state = {
@@ -135,6 +145,20 @@ function createBackground() {
     state.causticFilter = causticFilter;
 }
 
+function addEntity(entity) {
+    state.entities.push(entity);
+    state.container.addChild(entity.graphics);
+    return entity;
+}
+
+// Take an organism's graphics off the stage and free them. The entity itself
+// has already been dropped from state.entities by the caller.
+function destroyGraphics(entity) {
+    state.container.removeChild(entity.graphics);
+    entity.graphics.destroy({ children: true });
+    if (state.hoveredEntity === entity) state.hoveredEntity = null;
+}
+
 function spawnBacteria(count, originX, originY) {
     for (let i = 0; i < count; i++) {
         let x, y;
@@ -150,9 +174,7 @@ function spawnBacteria(count, originX, originY) {
             y = Math.random() * state.app.screen.height;
         }
 
-        const bacteria = new Bacteria(x, y);
-        state.entities.push(bacteria);
-        state.container.addChild(bacteria.graphics);
+        addEntity(ecology.make('bacteria', x, y));
     }
     updateStats();
 }
@@ -161,9 +183,7 @@ function spawnParamecia(count) {
     for (let i = 0; i < count; i++) {
         const x = Math.random() * state.app.screen.width;
         const y = Math.random() * state.app.screen.height;
-        const p = new Paramecium(x, y);
-        state.entities.push(p);
-        state.container.addChild(p.graphics);
+        addEntity(ecology.make('paramecium', x, y));
     }
     updateStats();
 }
@@ -172,9 +192,7 @@ function spawnAlgae(count) {
     for (let i = 0; i < count; i++) {
         const x = Math.random() * state.app.screen.width;
         const y = Math.random() * state.app.screen.height;
-        const a = new Algae(x, y);
-        state.entities.push(a);
-        state.container.addChild(a.graphics);
+        addEntity(ecology.make('algae', x, y));
     }
     updateStats();
 }
@@ -183,9 +201,7 @@ function spawnAmoebas(count) {
     for (let i = 0; i < count; i++) {
         const x = Math.random() * state.app.screen.width;
         const y = Math.random() * state.app.screen.height;
-        const a = new Amoeba(x, y);
-        state.entities.push(a);
-        state.container.addChild(a.graphics);
+        addEntity(ecology.make('amoeba', x, y));
     }
     updateStats();
 }
@@ -194,9 +210,7 @@ function spawnEuglena(count) {
     for (let i = 0; i < count; i++) {
         const x = Math.random() * state.app.screen.width;
         const y = Math.random() * state.app.screen.height;
-        const e = new Euglena(x, y);
-        state.entities.push(e);
-        state.container.addChild(e.graphics);
+        addEntity(ecology.make('euglena', x, y));
     }
     updateStats();
 }
@@ -205,9 +219,7 @@ function spawnRotifers(count) {
     for (let i = 0; i < count; i++) {
         const x = Math.random() * state.app.screen.width;
         const y = Math.random() * state.app.screen.height;
-        const r = new Rotifer(x, y);
-        state.entities.push(r);
-        state.container.addChild(r.graphics);
+        addEntity(ecology.make('rotifer', x, y));
     }
     updateStats();
 }
@@ -217,17 +229,13 @@ function spawnHydras(count) {
         // Hydras attach near bottom of screen
         const x = 100 + Math.random() * (state.app.screen.width - 200);
         const y = state.app.screen.height - 80 - Math.random() * 100;
-        const h = new Hydra(x, y);
-        state.entities.push(h);
-        state.container.addChild(h.graphics);
+        addEntity(ecology.make('hydra', x, y));
     }
     updateStats();
 }
 
 function spawnDetritus(x, y, size) {
-    const d = new Detritus(x, y, size);
-    state.entities.push(d);
-    state.container.addChild(d.graphics);
+    addEntity(ecology.make('detritus', x, y, size));
 }
 
 function createOxygenBubble(x, y) {
@@ -282,6 +290,7 @@ function updateOxygenBubbles(delta) {
         // Remove when dead or off screen
         if (bubble.life <= 0 || bubble.y < -20) {
             state.container.removeChild(bubble.graphics);
+            bubble.graphics.destroy();
             state.oxygenBubbles.splice(i, 1);
         }
     }
@@ -315,6 +324,7 @@ function createParticleBurst(x, y, color) {
                 requestAnimationFrame(animateParticle);
             } else {
                 state.container.removeChild(p);
+                p.destroy();
             }
         };
         requestAnimationFrame(animateParticle);
@@ -338,13 +348,14 @@ function createMotionTrail(x, y, color, size) {
     trail.graphics.x = x;
     trail.graphics.y = y;
 
-    state.container.addChildAt(trail.graphics, 0); // Behind everything
+    state.container.addChildAt(trail.graphics, 1); // Just above the background
     state.motionTrails.push(trail);
 
     // Limit trail count
     if (state.motionTrails.length > 100) {
         const old = state.motionTrails.shift();
         state.container.removeChild(old.graphics);
+        old.graphics.destroy();
     }
 }
 
@@ -356,6 +367,7 @@ function updateMotionTrails(delta) {
 
         if (trail.alpha <= 0) {
             state.container.removeChild(trail.graphics);
+            trail.graphics.destroy();
             state.motionTrails.splice(i, 1);
         }
     }
@@ -579,110 +591,37 @@ function gameLoop(delta) {
     const driftX = (Math.sin(time * 0.1) * 0.03 + Math.sin(time * 0.23) * 0.02) * tempMultiplier;
     const driftY = (Math.cos(time * 0.13) * 0.03 + Math.cos(time * 0.19) * 0.02) * tempMultiplier;
 
-    // Entities to spawn (reproduction)
-    const toSpawn = [];
+    // Feeding, starvation, decomposition and division (see ecology.js)
+    const events = ecology.step(state.entities, {
+        delta,
+        bounds,
+        light: state.lightIntensity,
+        temperature: state.temperature,
+        driftX,
+        driftY,
+    });
 
-    // Iterate properly to allow removal
-    for (let i = state.entities.length - 1; i >= 0; i--) {
-        const entity = state.entities[i];
-
-        // Apply Drift (gentler)
-        entity.x += driftX * delta;
-        entity.y += driftY * delta;
-
-        // Pass entities list for interaction (hunting)
-        // Apply temperature multiplier to delta for faster/slower metabolism
-        const adjustedDelta = delta * tempMultiplier;
-        const eatenEntity = entity.update(adjustedDelta, bounds, state.lightIntensity, state.entities, state.temperature);
-
-        if (eatenEntity) {
-            // Check if detritus just decomposed
-            if (eatenEntity === 'decomposed') {
-                // Remove the decomposed detritus
-                state.entities.splice(i, 1);
-                state.container.removeChild(entity.graphics);
-                continue;
-            }
-
-            // Remove eaten entity
-            const index = state.entities.indexOf(eatenEntity);
-            if (index > -1) {
-                // PARTICLE BURST EFFECT
-                createParticleBurst(eatenEntity.x, eatenEntity.y, eatenEntity.color || 0xFFFFFF);
-
-                // Larger organisms leave detritus
-                if (eatenEntity.type === 'paramecium' || eatenEntity.type === 'euglena') {
-                    spawnDetritus(eatenEntity.x, eatenEntity.y, 4);
-                }
-
-                state.entities.splice(index, 1);
-                state.container.removeChild(eatenEntity.graphics);
-                updateStats();
-            }
-        }
-
-        // Check for reproduction
-        if (entity.canReproduce && entity.canReproduce()) {
-            const spawnInfo = entity.reproduce();
-            toSpawn.push({ type: entity.type, x: spawnInfo.x, y: spawnInfo.y });
-        }
-
-        // Algae produce oxygen bubbles during photosynthesis
-        if (entity.type === 'algae' && state.lightIntensity > 0.8) {
-            if (Math.random() < 0.002 * state.lightIntensity * delta) {
-                createOxygenBubble(
-                    entity.x + (Math.random() - 0.5) * 15,
-                    entity.y + (Math.random() - 0.5) * 15
-                );
-            }
-        }
-
-        // Euglena also produces bubbles when photosynthesizing
-        if (entity.type === 'euglena' && entity.mode === 'photosynthetic' && state.lightIntensity > 0.9) {
-            if (Math.random() < 0.001 * delta) {
-                createOxygenBubble(entity.x, entity.y);
-            }
-        }
+    for (const eaten of events.eaten) {
+        createParticleBurst(eaten.x, eaten.y, eaten.color || 0xFFFFFF);
     }
-
-    // Spawn offspring from reproduction (with population caps)
-    const euglenaCount = state.entities.filter(e => e.type === 'euglena').length;
-    const rotiferCount = state.entities.filter(e => e.type === 'rotifer').length;
-
-    for (const spawn of toSpawn) {
-        if (spawn.type === 'euglena' && euglenaCount < CONFIG.maxEuglena) {
-            const e = new Euglena(spawn.x, spawn.y);
-            state.entities.push(e);
-            state.container.addChild(e.graphics);
-        } else if (spawn.type === 'rotifer' && rotiferCount < CONFIG.maxRotifer) {
-            const r = new Rotifer(spawn.x, spawn.y);
-            state.entities.push(r);
-            state.container.addChild(r.graphics);
-        }
-    }
+    for (const e of events.removed) destroyGraphics(e);
+    for (const e of events.added) state.container.addChild(e.graphics);
+    for (const b of events.bubbles) createOxygenBubble(b.x, b.y);
+    if (state.frameCount % 30 === 0) updateStats();
 
     // Update oxygen bubbles
     updateOxygenBubbles(delta);
 
-    // Periodic stats update and bacteria respawn
+    // Periodic graph update
     if (state.frameCount % 60 === 0) {
-        updateStats();
         updatePopulationGraph();
+    }
 
-        // Bacteria slowly reproduce if there are few left
-        const bacteriaCount = state.entities.filter(e => e.type === 'bacteria').length;
-        if (bacteriaCount < 50 && Math.random() < 0.3) {
-            spawnBacteria(5);
-        }
-
-        // Occasionally spawn detritus (organic matter settling)
-        if (Math.random() < 0.1) {
-            spawnDetritus(
-                Math.random() * state.app.screen.width,
-                -10,
-                2 + Math.random() * 2
-            );
-        }
+    // Keep the hover highlight on the organism as it moves
+    if (state.hoveredEntity) {
+        state.highlight.position.set(state.hoveredEntity.x, state.hoveredEntity.y);
+    } else {
+        state.highlight.visible = false;
     }
 
     // Update background darkness based on light intensity
@@ -701,7 +640,8 @@ function setupInteractions() {
         const localPos = state.container.toLocal(event.global);
 
         if (state.activeTool === 'pipette') {
-            // Spawn a burst of nutrients at the clicked location
+            // Add nutrients, with the bacteria that come in on the drop
+            ecology.addNutrients(400);
             spawnBacteria(20, localPos.x, localPos.y);
 
             // Visual feedback: a small expanding circle for the "drop"
@@ -976,6 +916,12 @@ function setupOrganismInspector() {
     state.app.stage.addChild(state.tooltip);
     state.app.stage.addChild(state.tooltipText);
 
+    // Ring around the hovered organism (world space, follows it in gameLoop)
+    state.highlight = new PIXI.Graphics();
+    state.highlight.visible = false;
+    state.highlight.zIndex = 10;
+    state.container.addChild(state.highlight);
+
     // Track mouse for tooltip
     state.app.stage.on('pointermove', (e) => {
         const localPos = state.container.toLocal(e.global);
@@ -1099,8 +1045,19 @@ function updateOrganismTooltip(worldX, worldY, screenX, screenY) {
         state.tooltipText.visible = true;
 
         // Highlight organism
-        hoveredEntity.graphics.alpha = 1.2;
+        if (state.hoveredEntity !== hoveredEntity) {
+            const radius = hoveredEntity.type === 'hydra' ? 40 :
+                hoveredEntity.type === 'amoeba' ? hoveredEntity.size * 0.8 :
+                    hoveredEntity.type === 'paramecium' || hoveredEntity.type === 'rotifer' ? 30 : 12;
+            state.highlight.clear();
+            state.highlight.lineStyle(1.5, 0xaaddff, 0.7);
+            state.highlight.drawCircle(0, 0, radius);
+        }
+        state.hoveredEntity = hoveredEntity;
+        state.highlight.position.set(hoveredEntity.x, hoveredEntity.y);
+        state.highlight.visible = true;
     } else {
+        state.hoveredEntity = null;
         state.tooltip.visible = false;
         state.tooltipText.visible = false;
     }

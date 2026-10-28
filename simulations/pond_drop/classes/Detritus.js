@@ -10,8 +10,11 @@ export class Detritus {
         this.size = size || (2 + Math.random() * 3);
         this.rotation = Math.random() * Math.PI * 2;
         this.rotSpeed = (Math.random() - 0.5) * 0.02;
-        this.life = 300 + Math.random() * 200; // Decomposes over time
-        this.nutrients = this.size * 2;
+        // Bacteria feed on the nutrients (see ecology.js); life is the slow
+        // abiotic breakdown of whatever they don't reach.
+        this.life = 2000 + Math.random() * 1000;
+        this.nutrients = this.size * 8;
+        this.maxNutrients = this.nutrients;
 
         // Graphics
         this.graphics = new PIXI.Graphics();
@@ -74,10 +77,10 @@ export class Detritus {
         this.graphics.x = this.x;
         this.graphics.y = this.y;
         this.graphics.rotation = this.rotation;
-        this.graphics.alpha = Math.min(1, this.life / 100);
+        this.graphics.alpha = Math.min(1, this.life / 100, 0.3 + 0.7 * this.nutrients / this.maxNutrients);
 
         // Return self if decomposed (to be removed)
-        if (this.life <= 0) {
+        if (this.life <= 0 || this.nutrients <= 0) {
             return 'decomposed';
         }
 
