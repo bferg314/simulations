@@ -244,7 +244,8 @@ class SpaceStation {
     update(speed) {
         this.group.position.z += speed;
         this.group.rotation.z += 0.01;
-        this.lights.forEach(l => l.material.opacity = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0);
+        const on = Math.sin(Date.now() * 0.01) > 0;
+        this.lights.forEach(l => { l.visible = on; });
     }
 
     dispose() {
@@ -551,13 +552,19 @@ function dragEnd() {
     isDragging = false;
 }
 
+const FREQUENCY_RANGES = {
+    galaxyFrequency: { min: 0.001, max: 0.05 },
+    nebulaFrequency: { min: 0.001, max: 0.05 },
+    asteroidFrequency: { min: 0.001, max: 0.05 },
+    planetFrequency: { min: 0.0001, max: 0.005 },
+    blackHoleFrequency: { min: 0.0001, max: 0.002 },
+    stationFrequency: { min: 0.0001, max: 0.002 },
+};
+
 pane.addBinding(CONFIG, 'warpSpeed', { min: 0.1, max: 10.0 });
-pane.addBinding(CONFIG, 'galaxyFrequency', { min: 0.001, max: 0.05 });
-pane.addBinding(CONFIG, 'nebulaFrequency', { min: 0.001, max: 0.05 });
-pane.addBinding(CONFIG, 'asteroidFrequency', { min: 0.001, max: 0.05 });
-pane.addBinding(CONFIG, 'planetFrequency', { min: 0.0001, max: 0.005 });
-pane.addBinding(CONFIG, 'blackHoleFrequency', { min: 0.0001, max: 0.002 });
-pane.addBinding(CONFIG, 'stationFrequency', { min: 0.0001, max: 0.002 });
+for (const [key, range] of Object.entries(FREQUENCY_RANGES)) {
+    pane.addBinding(CONFIG, key, range);
+}
 pane.addBinding(CONFIG, 'fogDensity', { min: 0.0, max: 0.005 }).on('change', () => {
     scene.fog.density = CONFIG.fogDensity;
 });
@@ -578,11 +585,11 @@ pane.addBlade({ view: 'separator' });
 pane.addButton({
     title: '🎲 RANDOMIZE ADVENTURE',
 }).on('click', () => {
-    // Randomize all frequencies
-    const freqs = ['galaxyFrequency', 'nebulaFrequency', 'asteroidFrequency', 'planetFrequency', 'blackHoleFrequency', 'stationFrequency'];
-    freqs.forEach(f => {
-        CONFIG[f] = Math.random() * 0.02; // Give them a decent range
-    });
+    // Randomize each frequency within its own slider range. A shared range
+    // made black holes a hundred times more common than their default.
+    for (const [key, { min, max }] of Object.entries(FREQUENCY_RANGES)) {
+        CONFIG[key] = min + Math.random() * (max - min);
+    }
 
     // Randomize visuals
     CONFIG.warpSpeed = 0.1 + Math.random() * 2.0;
@@ -608,30 +615,26 @@ const scannerUI = document.querySelector('.hud-bottom div:last-child');
 const hud = document.getElementById('hud');
 const warpWarning = document.getElementById('warp-warning');
 
-window.addEventListener('mousedown', (e) => {
-    if (consoleContainer.contains(e.target)) return;
-    targetMultiplier = 12.0; // More drama!
-    hud.classList.add('scanner-active');
-    scannerUI.innerText = 'SCANNER: SCANNING...';
-    if (CONFIG.hyperspace) warpWarning.style.display = 'flex';
-});
-window.addEventListener('mouseup', () => {
-    targetMultiplier = 1.0;
-    hud.classList.remove('scanner-active');
-    scannerUI.innerText = 'SCANNER: IDLE';
-    warpWarning.style.display = 'none';
-});
-window.addEventListener('touchstart', (e) => {
-    if (consoleContainer.contains(e.target)) return;
-    targetMultiplier = 12.0;
-    hud.classList.add('scanner-active');
-    if (CONFIG.hyperspace) warpWarning.style.display = 'flex';
-});
-window.addEventListener('touchend', () => {
-    targetMultiplier = 1.0;
-    hud.classList.remove('scanner-active');
-    warpWarning.style.display = 'none';
-});
+// Hold on the canvas to warp. Pointer events cover mouse and touch alike, and
+// listening on the canvas keeps the console and back button from triggering it.
+function setWarp(active) {
+    targetMultiplier = active ? 12.0 : 1.0; // More drama!
+    hud.classList.toggle('scanner-active', active);
+    warpWarning.style.display = active && CONFIG.hyperspace ? 'flex' : 'none';
+}
+renderer.domElement.addEventListener('pointerdown', () => setWarp(true));
+window.addEventListener('pointerup', () => setWarp(false));
+window.addEventListener('pointercancel', () => setWarp(false));
+
+// Scanner text is derived from state each frame, so it can't get stuck on an
+// old message.
+let scannerText = '';
+function setScannerText(text) {
+    if (text !== scannerText) {
+        scannerText = text;
+        scannerUI.innerText = text;
+    }
+}
 
 function animate() {
     requestAnimationFrame(animate);
@@ -814,9 +817,10 @@ function animate() {
     // HUD Interference
     if (proximityDrama > 0.5) {
         hud.style.opacity = 0.5 + Math.random() * 0.5;
-        scannerUI.innerText = '⚠️ GRAVITY ANOMALY DETECTED';
-    } else if (targetMultiplier === 1.0) {
+        setScannerText('⚠️ GRAVITY ANOMALY DETECTED');
+    } else {
         hud.style.opacity = 1.0;
+        setScannerText(targetMultiplier > 1 ? 'SCANNER: SCANNING...' : 'SCANNER: IDLE');
     }
 
     composer.render();
