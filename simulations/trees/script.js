@@ -133,21 +133,26 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // --- FIREFLIES ---
-// A fixed pool rather than spawning and removing lights: changing the number of
-// lights in the scene forces every material to recompile.
+// Glowing dots that the bloom pass turns into halos. Real point lights looked
+// no different at this scale and multiplied the lighting cost of every
+// material in the scene, the grass included.
 const FIREFLY_COUNT = 10;
 let nightFactor = 0; // 0 by day, 1 at full night; set by updateEnvironment
 
 class Firefly {
     constructor(scene) {
         this.basePos = new THREE.Vector3();
-        this.light = new THREE.PointLight(0xffff66, 0, 5);
         this.mesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.05, 8, 8),
-            new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0 })
+            new THREE.SphereGeometry(0.09, 8, 8),
+            new THREE.MeshBasicMaterial({
+                color: 0xffffaa,
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            })
         );
         this.offsets = new THREE.Vector3();
-        scene.add(this.light);
         scene.add(this.mesh);
         this.respawn();
         this.age = Math.random() * this.maxAge; // stagger the pool
@@ -170,18 +175,16 @@ class Firefly {
         if (this.age > this.maxAge) this.respawn();
 
         // Drift around the base point
-        this.light.position.set(
+        this.mesh.position.set(
             this.basePos.x + Math.sin(time * 0.6 + this.offsets.x) * 1.5,
             this.basePos.y + Math.sin(time * 0.8 + this.offsets.y) * 0.5,
             this.basePos.z + Math.cos(time * 0.5 + this.offsets.z) * 1.5
         );
-        this.mesh.position.copy(this.light.position);
 
         // Fade in and out over each life, flicker, and only glow at night
         const lifeFade = Math.sin(Math.PI * this.age / this.maxAge);
         const flicker = 0.6 + 0.4 * Math.sin(time * this.flickerRate + this.offsets.x);
         const glow = nightFactor * lifeFade * flicker;
-        this.light.intensity = glow * 2;
         this.mesh.material.opacity = glow;
         this.mesh.visible = glow > 0.01;
     }
