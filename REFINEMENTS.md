@@ -2,6 +2,8 @@
 
 A review of all nine simulations as of commit `5d26c42`. Each item names the file and line it concerns. Items marked **(verified)** were confirmed by loading the page in headless Chromium; the rest come from reading the code.
 
+**Status:** every P0 item is fixed (marked ✓), along with two bugs found while fixing them (listed under "Found during the P0 pass"). Line references in ✓ rows point at the code as it was before the fix.
+
 Priorities:
 
 - **P0**: visibly broken or wrong right now.
@@ -33,9 +35,9 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | **Ground is missing (verified).** [script.js:124-125](simulations/trees/script.js#L124) reads Z (always 0 on a `PlaneGeometry`) and overwrites Y, collapsing the plane into a thin strip. Trees and rocks are placed on terrain that isn't there; the screenshot shows them standing on sky. Fix: rotate the geometry first (`groundGeo.rotateX(-PI/2)`), then displace Y from X/Z, and drop the mesh rotation. |
-| P0 | Fireflies are fully implemented but never spawned ([script.js:183](simulations/trees/script.js#L183)). Spawn them at night near the ground, capped, with a pooled light count (each `PointLight` adds shader cost). |
-| P0 | `butterflyCount` and `shrubCount` sliders do nothing ([script.js:588](simulations/trees/script.js#L588)). Wire them to rebuild, or remove them. |
+| P0 ✓ | **Ground is missing (verified).** [script.js:124-125](simulations/trees/script.js#L124) reads Z (always 0 on a `PlaneGeometry`) and overwrites Y, collapsing the plane into a thin strip. Trees and rocks are placed on terrain that isn't there; the screenshot shows them standing on sky. Fix: rotate the geometry first (`groundGeo.rotateX(-PI/2)`), then displace Y from X/Z, and drop the mesh rotation. |
+| P0 ✓ | Fireflies are fully implemented but never spawned ([script.js:183](simulations/trees/script.js#L183)). Spawn them at night near the ground, capped, with a pooled light count (each `PointLight` adds shader cost). |
+| P0 ✓ | `butterflyCount` and `shrubCount` sliders do nothing ([script.js:588](simulations/trees/script.js#L588)). Wire them to rebuild, or remove them. |
 | P1 | `Object.assign(moonLight.shadow, sunLight.shadow)` ([script.js:87](simulations/trees/script.js#L87)) shares one shadow camera/map between two lights. Give the moon its own shadow, or disable moon shadows and keep one 2048 map. |
 | P1 | `pane.refresh()` every frame ([script.js:602](simulations/trees/script.js#L602)) and three `new THREE.Color()` per frame. Refresh at ~4 Hz; hoist the colours. |
 | P1 | 4,000 single-triangle grass blades cast shadows. Turn off `castShadow` on grass. |
@@ -46,9 +48,9 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | Flowers start at a negative age ([script.js:383](simulations/flowers/script.js#L383)), and the growth branch sets `scale = min(age, 1)` ([script.js:249](simulations/flowers/script.js#L249)), so for their first few seconds they render with negative scale (inside-out). Clamp to `max(0, …)` and hide until age ≥ 0. |
-| P0 | Wither droop never shows: the wind line at [script.js:262](simulations/flowers/script.js#L262) overwrites `rotation.z` right after the wither branch sets it. Add the droop on top of wind. |
-| P0 | Sunflower stem/head mismatch: `height *= 1.2` ([script.js:118](simulations/flowers/script.js#L118)) runs after the head was positioned, and the stem's 1.5× scale is never reset when the slot respawns as another type. |
+| P0 ✓ | Flowers start at a negative age ([script.js:383](simulations/flowers/script.js#L383)), and the growth branch sets `scale = min(age, 1)` ([script.js:249](simulations/flowers/script.js#L249)), so for their first few seconds they render with negative scale (inside-out). Clamp to `max(0, …)` and hide until age ≥ 0. |
+| P0 ✓ | Wither droop never shows: the wind line at [script.js:262](simulations/flowers/script.js#L262) overwrites `rotation.z` right after the wither branch sets it. Add the droop on top of wind. |
+| P0 ✓ | Sunflower stem/head mismatch: `height *= 1.2` ([script.js:118](simulations/flowers/script.js#L118)) runs after the head was positioned, and the stem's 1.5× scale is never reset when the slot respawns as another type. |
 | P1 | Click-to-plant adds flowers without limit; `flowerCount` only applies on reset. Recycle the oldest flower instead. |
 | P1 | Every flower builds its own geometries and materials. Share them per flower type (or move to `InstancedMesh` per part). |
 | P2 | Ground has random per-vertex jitter but flowers are planted at y=0, so stems float or sink. Use a deterministic height function (as trees does) and sample it at plant time. Flowers don't cast shadows despite shadows being enabled. |
@@ -58,8 +60,8 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | `dt` is always ~0: `getElapsedTime()` ([script.js:317](simulations/jellyfish/script.js#L317)) already calls `getDelta()` internally, so the following `getDelta()` returns nothing. `phase` never advances. Call `getDelta()` once and accumulate time yourself. |
-| P0 | `count`, `speed` and `tentacleLength` are unused; the `count` slider is bound with a "skip for now" comment ([script.js:346](simulations/jellyfish/script.js#L346)). The colour picker updates bells but not tentacles. |
+| P0 ✓ | `dt` is always ~0: `getElapsedTime()` ([script.js:317](simulations/jellyfish/script.js#L317)) already calls `getDelta()` internally, so the following `getDelta()` returns nothing. `phase` never advances. Call `getDelta()` once and accumulate time yourself. |
+| P0 ✓ | `count`, `speed` and `tentacleLength` are unused; the `count` slider is bound with a "skip for now" comment ([script.js:346](simulations/jellyfish/script.js#L346)). The colour picker updates bells but not tentacles. |
 | **P1** | Every frame rebuilds 120 `TubeGeometry` objects ([script.js:253](simulations/jellyfish/script.js#L253)). Keep a fixed-size tube buffer and rewrite its vertex positions, or draw tentacles as `Line2`/ribbon geometry updated in place. |
 | P1 | The tentacle inverse matrix uses last frame's `matrixWorld`, so tentacles lag their bell by a frame. Call `pivot.updateMatrixWorld()` first. |
 | P2 | Jellies only bob in place. Add pulse-driven locomotion (thrust on the contraction stroke, drift on relaxation) so the bell pulse actually propels them, with soft bounds so the sonar push can't send them away for good (vertical impulse is currently discarded because `y` is overwritten each frame). |
@@ -70,8 +72,8 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | Fish anatomy is reversed. The head is +Z, but the mouth sits at −0.42 Z ([script.js:339](simulations/aquarium/script.js#L339)), on the tail. Pectoral fins are at the rear and the anal fin at the front. |
-| P0 | Eaten food is moved to y = −999 ([script.js:649](simulations/aquarium/script.js#L649)) and never removed or disposed. |
+| P0 ✓ | Fish anatomy is reversed. The head is +Z, but the mouth sits at −0.42 Z ([script.js:339](simulations/aquarium/script.js#L339)), on the tail, and the anal fin is at the front. The left pectoral and ventral fins reuse the right-side geometry without mirroring it, so they point inward and forward. |
+| P0 ✓ | Eaten food is moved to y = −999 ([script.js:649](simulations/aquarium/script.js#L649)) and never removed or disposed. |
 | **P1** | Heaviest page in the hub (~1 fps in software rendering vs. ~14 for the ant farm). Causes: ~20 meshes and 6 materials per fish (3,000+ draw calls at 150 fish), and a `MeshPhysicalMaterial` with `transmission` on each bubble ([script.js:712](simulations/aquarium/script.js#L712)), which forces an extra transmission render pass. Merge each fish into one skinned or vertex-animated mesh rendered via `InstancedMesh` (tail swing in the vertex shader), and use a cheap additive sprite for bubbles. |
 | P1 | Physics is per-frame with no `dt`; `scareTimer -= 0.016` ([script.js:1012](simulations/aquarium/script.js#L1012)) assumes 60 fps. Flocking allocates several `Vector3`s per neighbour pair ([script.js:583](simulations/aquarium/script.js#L583)). |
 | P2 | Fish are bounded by a sphere inside a box tank, so they ignore the walls, swim through rocks and sand, and never use the corners. Use box bounds with soft wall steering and obstacle avoidance. |
@@ -82,9 +84,9 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| P0 | Station blink lights set `opacity` on a non-transparent material ([script.js:247](simulations/space/script.js#L247)), so they never blink. |
-| P0 | "Randomize Adventure" sets every frequency up to 0.02 ([script.js:584](simulations/space/script.js#L584)), 100× the default for black holes. Randomize within each slider's own range. |
-| P0 | Scanner text sticks on "GRAVITY ANOMALY" after a black hole passes unless the mouse is released; touch never updates the scanner text. Warp also triggers when clicking the back button. Switch to pointer events with a single state function. |
+| P0 ✓ | Station blink lights set `opacity` on a non-transparent material ([script.js:247](simulations/space/script.js#L247)), so they never blink. |
+| P0 ✓ | "Randomize Adventure" sets every frequency up to 0.02 ([script.js:584](simulations/space/script.js#L584)), 100× the default for black holes. Randomize within each slider's own range. |
+| P0 ✓ | Scanner text sticks on "GRAVITY ANOMALY" after a black hole passes unless the mouse is released; touch never updates the scanner text. Warp also triggers when clicking the back button. Switch to pointer events with a single state function. |
 | P1 | Spawning is `Math.random() < freq` per frame ([script.js:697](simulations/space/script.js#L697)), so a 144 Hz display sees 2.4× as many objects. Express frequencies per second or per unit distance travelled. |
 | P1 | Every galaxy creates a new canvas texture ([script.js:469](simulations/space/script.js#L469)) that `dispose()` never frees; every asteroid creates its own geometry and material. Share one sprite texture and pool asteroids with an `InstancedMesh`. |
 | P2 | Galaxies are tiny (radius ~20, point size 0.2) and indistinct. Use a proper log-spiral arm distribution with a bright core and colour gradient. The sun never moves, so the voyage never passes a star; make it a spawnable object. |
@@ -94,9 +96,9 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | Motion trails are invisible: they're inserted at index 0 ([script.js:341](simulations/pond_drop/script.js#L341)), underneath the opaque 4000×4000 background. They're created every third frame for every moving organism and cost draw time for nothing. |
-| P0 | Hovering sets `graphics.alpha = 1.2` ([script.js:1102](simulations/pond_drop/script.js#L1102)) and never resets it. |
-| **P0** | Population dynamics don't emerge, they're scripted: nothing dies of starvation (energy goes negative indefinitely), paramecia and amoebae never reproduce, hydra "reproduce" by resetting energy but the spawner only handles euglena and rotifers ([script.js:653](simulations/pond_drop/script.js#L653)), and bacteria are topped up whenever they drop below 50 ([script.js:674](simulations/pond_drop/script.js#L674)). Give every organism an energy budget with death at zero (leaving detritus), reproduction above a threshold, and let bacteria grow on detritus/nutrients. Then the README's bloom → boom → crash cycle can actually happen. |
+| P0 ✓ | Motion trails are invisible: they're inserted at index 0 ([script.js:341](simulations/pond_drop/script.js#L341)), underneath the opaque 4000×4000 background. They're created every third frame for every moving organism and cost draw time for nothing. |
+| P0 ✓ | Hovering sets `graphics.alpha = 1.2` ([script.js:1102](simulations/pond_drop/script.js#L1102)) and never resets it. |
+| P0 ✓ | Population dynamics don't emerge, they're scripted: nothing dies of starvation (energy goes negative indefinitely), paramecia and amoebae never reproduce, hydra "reproduce" by resetting energy but the spawner only handles euglena and rotifers ([script.js:653](simulations/pond_drop/script.js#L653)), and bacteria are topped up whenever they drop below 50 ([script.js:674](simulations/pond_drop/script.js#L674)). Give every organism an energy budget with death at zero (leaving detritus), reproduction above a threshold, and let bacteria grow on detritus/nutrients. Then the README's bloom → boom → crash cycle can actually happen. |
 | P1 | The background is a fixed 4000×4000 rect with a filter ([script.js:125](simulations/pond_drop/script.js#L125)); zoomed out on a large monitor its edge shows, and filtering 16M pixels is expensive. Use a screen-sized filtered sprite that ignores camera transform. |
 | P1 | Population counts are recomputed with seven `filter()` passes, several times a frame. Maintain counts incrementally on spawn/remove. |
 | P2 | Bounds ignore pan offset, so panning reveals empty water. The pipette spawns bacteria directly instead of adding nutrients. Algae never grow or get eaten. |
@@ -106,9 +108,9 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | Bacteria hit the 500 cap within six seconds (verified). Feeding shrinks organic matter to a floor of 2 ([Bacteria.js:44](simulations/soil_rhizosphere/classes/Bacteria.js#L44)) and never removes it, so food is infinite. Meanwhile the stats panel reads "Nutrients: Low". Make organic matter a finite resource that bacteria consume and that releases nutrients into the soil. |
-| P0 | Organic matter "fibers" use `random()` in `display()` ([SoilParticle.js:59](simulations/soil_rhizosphere/classes/SoilParticle.js#L59)), so they flicker every frame. Bake them at construction. |
-| P0 | Resizing the window wipes the whole simulation ([script.js:349](simulations/soil_rhizosphere/script.js#L349)). |
+| P0 ✓ | Bacteria hit the 500 cap within six seconds (verified). Feeding shrinks organic matter to a floor of 2 ([Bacteria.js:44](simulations/soil_rhizosphere/classes/Bacteria.js#L44)) and never removes it, so food is infinite. Meanwhile the stats panel reads "Nutrients: Low". Make organic matter a finite resource that bacteria consume and that releases nutrients into the soil. |
+| P0 ✓ | Organic matter "fibers" use `random()` in `display()` ([SoilParticle.js:59](simulations/soil_rhizosphere/classes/SoilParticle.js#L59)), so they flicker every frame. Bake them at construction. |
+| P0 ✓ | Resizing the window wipes the whole simulation ([script.js:349](simulations/soil_rhizosphere/script.js#L349)). |
 | **P1** | The soil gradient is drawn as one `line()` per pixel row every frame ([script.js:52](simulations/soil_rhizosphere/script.js#L52)); bake it to an offscreen buffer. It also starts at world y=0, so panning down shows an unpainted band. |
 | P1 | Each bacterium scans every particle and every root point every frame (~500 × 1,000). Use the shared spatial grid. |
 | P1 | Placing organic matter calls `particles.shift()` past 2,000 ([script.js:220](simulations/soil_rhizosphere/script.js#L220)), deleting arbitrary old sand and clay from the top-left of the screen. |
@@ -120,10 +122,10 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | Pri | Refinement |
 |-----|-----------|
-| **P0** | The plasma background renders black in headless Chromium (verified) instead of the pale amber the shader specifies. Confirm in a real browser; if it reproduces, the likely cause is `gl_FragCoord` / `resolution` in a Pixi v7 filter, which works in filter-space coordinates. |
-| P0 | There are no vessel walls. `vesselRadius` is half the screen height ([script.js:62](simulations/blood_vessel/script.js#L62)), so the "endothelium" is the screen edge and the scalpel can cut the middle of the lumen ([script.js:683](simulations/blood_vessel/script.js#L683)). Draw walls with a visible lumen and only accept cuts on the wall. |
-| P0 | The default view already reads BP 140/93 and 33% plaque (verified): cholesterol sticks immediately. Start from a healthy baseline and let plaque accumulate over minutes. |
-| P0 | The fever vignette's "clear centre" is a zero-alpha fill on top of a red fill ([script.js:198](simulations/blood_vessel/script.js#L198)), which clears nothing; the whole screen tints. Use a radial gradient sprite. |
+| P0 ✓ | The plasma background renders black instead of the pale amber the shader specifies (verified). Cause: the shader's `uniform vec2 resolution` is overridden by Pixi v7's filter-system global of the same name. |
+| P0 ✓ | There are no vessel walls. `vesselRadius` is half the screen height ([script.js:62](simulations/blood_vessel/script.js#L62)), so the "endothelium" is the screen edge and the scalpel can cut the middle of the lumen ([script.js:683](simulations/blood_vessel/script.js#L683)). Draw walls with a visible lumen and only accept cuts on the wall. |
+| P0 ✓ | The default view already reads BP 140/93 and 33% plaque (verified): cholesterol sticks immediately. Start from a healthy baseline and let plaque accumulate over minutes. |
+| P0 ✓ | The fever vignette's "clear centre" is a zero-alpha fill on top of a red fill ([script.js:198](simulations/blood_vessel/script.js#L198)), which clears nothing; the whole screen tints. Use a radial gradient sprite. |
 | P1 | Nothing handles resize: the background rect ([script.js:93](simulations/blood_vessel/script.js#L93)), ECG position and vessel radius are fixed at load. |
 | P1 | Clot lifetime counts frames, not `delta` ([Platelet.js:59](simulations/blood_vessel/classes/Platelet.js#L59)). Each RBC scans every entity for clot collisions. |
 | P2 | Platelets only stick inside the wound radius; aggregation onto other platelets (DESIGN.md step 4) and the fibrin mesh (step 6) aren't built, so clots stay one layer thick and never block flow. RBCs pass through each other. |
@@ -152,6 +154,14 @@ The most mature sim: a clean config, documented invariants, and no visible bugs 
 | P3 | Group the cards by section (3D nature, 3D ocean/space, 2D biology) to match the README. |
 
 ---
+
+## Found during the P0 pass
+
+| Sim | Finding |
+|-----|---------|
+| Jellyfish | **Fixed.** Tentacle nodes are world-space but started at the jelly's local offsets, and the spring recovered only 10% of stretch per frame, so every tentacle streamed from its bell to the scene centre. |
+| Pond | **Added.** A Node runner, `simulations/pond_drop/tools/headless.mjs`, now steps the ecosystem without a browser; it was used to tune the new population dynamics (see the pond README). |
+| Pond | **Not fixed.** The caustic shader also declares `uniform vec2 resolution`, the same name that blacked out the blood vessel plasma. It is unused there, so harmless, but rename it if it is ever used. |
 
 ## Suggested order
 
