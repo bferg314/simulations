@@ -42,7 +42,8 @@ class FungalNetwork {
 
     grow(soilParticles, rootSystem) {
         // Growth speed
-        if (frameCount % 3 !== 0) return;
+        this.ticks = (this.ticks || 0) + 1;
+        if (this.ticks % 3 !== 0) return;
 
         // Limit total size
         if (this.nodes.length >= 2000) return;
@@ -158,7 +159,7 @@ class FungalNetwork {
             noStroke();
             fill(180, 255, 180, 200); // Soft green pulse
             const pulseCount = 8;
-            const t = frameCount * 0.03;
+            const t = simTicks * 0.03;
 
             for (let i = 0; i < pulseCount; i++) {
                 let idx = floor(noise(t * 0.1 + i * 100) * this.nodes.length);

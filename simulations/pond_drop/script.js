@@ -7,6 +7,7 @@ import { Rotifer } from './classes/Rotifer.js';
 import { Detritus } from './classes/Detritus.js';
 import { Hydra } from './classes/Hydra.js';
 import { Ecology } from './ecology.js';
+import { FixedClock } from '../../shared/clock.js';
 
 // Configuration
 const CONFIG = {
@@ -34,6 +35,8 @@ const ecology = new Ecology({
     detritus: (x, y, size) => new Detritus(x, y, size),
 });
 
+const clock = new FixedClock();
+
 // State
 const state = {
     app: null,
@@ -50,9 +53,9 @@ const state = {
     dayNightEnabled: true,
     temperature: 1.0,
     frameCount: 0,
-    // Speed control
-    simulationSpeed: 1.0,
-    paused: false,
+    // Short-lived visual effects, advanced once per simulation step. Each is a
+    // function that returns true while it is still running.
+    effects: [],
     // Vortex
     vortex: null,
     vortexGraphics: null,
@@ -110,7 +113,12 @@ async function init() {
     setupPopulationGraph();
 
     // Start Loop
-    state.app.ticker.add((delta) => gameLoop(delta));
+    // Fixed 60 Hz steps, so damping and drift behave the same at any refresh
+    // rate. Each step is one 60 fps frame of the original tuning (delta 1).
+    state.app.ticker.add(() => {
+        const steps = clock.frame(performance.now());
+        for (let i = 0; i < steps; i++) gameLoop(1);
+    });
 }
 
 function createBackground() {
@@ -296,6 +304,14 @@ function updateOxygenBubbles(delta) {
     }
 }
 
+function addEffect(effect) {
+    state.effects.push(effect);
+}
+
+function updateEffects() {
+    state.effects = state.effects.filter(effect => effect());
+}
+
 function createParticleBurst(x, y, color) {
     const particleCount = 5;
     for (let i = 0; i < particleCount; i++) {
@@ -320,14 +336,12 @@ function createParticleBurst(x, y, color) {
             p.y += vy;
             p.alpha = life;
 
-            if (life > 0) {
-                requestAnimationFrame(animateParticle);
-            } else {
-                state.container.removeChild(p);
-                p.destroy();
-            }
+            if (life > 0) return true;
+            state.container.removeChild(p);
+            p.destroy();
+            return false;
         };
-        requestAnimationFrame(animateParticle);
+        addEffect(animateParticle);
     }
 }
 
@@ -535,12 +549,6 @@ function updatePopulationGraph() {
 }
 
 function gameLoop(delta) {
-    // Pause check
-    if (state.paused) return;
-
-    // Apply speed multiplier
-    delta *= state.simulationSpeed;
-
     state.frameCount = (state.frameCount || 0) + 1;
 
     // Update motion trails
@@ -587,7 +595,7 @@ function gameLoop(delta) {
     const bounds = { width: state.app.screen.width / state.zoom, height: state.app.screen.height / state.zoom };
 
     // Micro-currents (drift) - affected by temperature
-    const time = Date.now() * 0.001;
+    const time = clock.time;
     const driftX = (Math.sin(time * 0.1) * 0.03 + Math.sin(time * 0.23) * 0.02) * tempMultiplier;
     const driftY = (Math.cos(time * 0.13) * 0.03 + Math.cos(time * 0.19) * 0.02) * tempMultiplier;
 
@@ -611,6 +619,7 @@ function gameLoop(delta) {
 
     // Update oxygen bubbles
     updateOxygenBubbles(delta);
+    updateEffects();
 
     // Periodic graph update
     if (state.frameCount % 60 === 0) {
@@ -653,7 +662,7 @@ function setupInteractions() {
             drop.y = localPos.y;
             state.container.addChild(drop);
 
-            // Animate fade out (simple ticker-based or requestAnimationFrame)
+            // Animate fade out
             let alpha = 0.5;
             let scale = 1;
             const animateDrop = () => {
@@ -665,13 +674,12 @@ function setupInteractions() {
                 drop.beginFill(0x88ff88, alpha);
                 drop.drawCircle(0, 0, 10); // Redraw
 
-                if (alpha > 0) {
-                    requestAnimationFrame(animateDrop);
-                } else {
-                    state.container.removeChild(drop);
-                }
+                if (alpha > 0) return true;
+                state.container.removeChild(drop);
+                drop.destroy();
+                return false;
             };
-            requestAnimationFrame(animateDrop);
+            addEffect(animateDrop);
 
         } else if (state.activeTool === 'cursor') {
             // Visual ripple effect
@@ -691,13 +699,12 @@ function setupInteractions() {
                 ripple.lineStyle(2, 0x88ccff, rippleAlpha);
                 ripple.drawCircle(0, 0, rippleRadius);
 
-                if (rippleAlpha > 0) {
-                    requestAnimationFrame(animateRipple);
-                } else {
-                    state.container.removeChild(ripple);
-                }
+                if (rippleAlpha > 0) return true;
+                state.container.removeChild(ripple);
+                ripple.destroy();
+                return false;
             };
-            requestAnimationFrame(animateRipple);
+            addEffect(animateRipple);
 
             // Push entities away with distance-based force
             state.entities.forEach(entity => {
@@ -832,10 +839,10 @@ function setupUI() {
             btn.classList.add('active');
             const speed = parseFloat(btn.dataset.speed);
             if (speed === 0) {
-                state.paused = true;
+                clock.setPaused(true);
             } else {
-                state.paused = false;
-                state.simulationSpeed = speed;
+                clock.setPaused(false);
+                clock.setSpeed(speed);
             }
         });
     });

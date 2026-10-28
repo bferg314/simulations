@@ -2,7 +2,7 @@
 
 A review of all nine simulations as of commit `5d26c42`. Each item names the file and line it concerns. Items marked **(verified)** were confirmed by loading the page in headless Chromium; the rest come from reading the code.
 
-**Status:** every P0 item is fixed (marked ✓), along with two bugs found while fixing them (listed under "Found during the P0 pass"). Line references in ✓ rows point at the code as it was before the fix.
+**Status:** every P0 item and cross-cutting items X1 to X5 are done (marked ✓), along with two bugs found while fixing them (listed under "Found during the P0 pass"). Line references in ✓ rows point at the code as it was before the fix.
 
 Priorities:
 
@@ -19,11 +19,11 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 
 | # | Pri | Refinement |
 |---|-----|-----------|
-| X1 | P1 | **Shared sim shell** (`shared/shell.js`): back button, resize handling, `setPixelRatio(min(dpr, 2))`, pause when the tab is hidden (`visibilitychange`), a pause/speed control, and a `dt` clamp (e.g. `min(dt, 1/20)`) so returning to a background tab doesn't teleport everything. |
-| X2 | P1 | **Frame-rate independence.** Space, aquarium, jellyfish snow, trees (stars, lerps), blood vessel (clot timer, `frameCount`), pond (rAF-driven particles), soil (everything), and the ant farm (`simSpeed` ticks *per frame*, [script.js:214](simulations/ant_farm/script.js#L214)) all run faster on 120/144 Hz displays. Move to a fixed-timestep accumulator so behaviour matches on every monitor. |
-| X3 | P1 | **Click vs. drag.** Flowers, trees and jellyfish act on `pointerdown`, so every orbit drag (and every click on the Tweakpane panel) plants a flower / fires a burst / pushes jellies. Add a helper that fires only on a short, low-movement click that started on the canvas. |
-| X4 | P1 | **Ad-hoc animation loops.** Pond, aquarium and blood vessel animate ripples, flashes and scars with their own `requestAnimationFrame` / `setInterval` / `setTimeout`, so they ignore pause and speed. Route them through the main ticker. |
-| X5 | P1 | **Object disposal.** Removed Pixi `Graphics` are never `destroy()`ed (pond, blood vessel); Three meshes removed from the scene keep their geometry/material (aquarium food, space galaxy textures). Add a `remove(entity)` helper per engine. |
+| X1 | P1 ✓ | **Shared sim shell** (`shared/shell.js`): back button, resize handling, `setPixelRatio(min(dpr, 2))`, pause when the tab is hidden (`visibilitychange`), a pause/speed control, and a `dt` clamp (e.g. `min(dt, 1/20)`) so returning to a background tab doesn't teleport everything. **Done** as three modules: `shared/clock.js` (fixed-timestep clock that also pauses when the tab is hidden and clamps long gaps), `shared/input.js` and `shared/playback.js` (pause/speed pill, Space to pause). Back buttons and resize code stay per sim. |
+| X2 | P1 ✓ | **Frame-rate independence.** Space, aquarium, jellyfish snow, trees (stars, lerps), blood vessel (clot timer, `frameCount`), pond (rAF-driven particles), soil (everything), and the ant farm (`simSpeed` ticks *per frame*, [script.js:214](simulations/ant_farm/script.js#L214)) all run faster on 120/144 Hz displays. Move to a fixed-timestep accumulator so behaviour matches on every monitor. **Done:** every sim now runs its logic in fixed 60 Hz steps from `shared/clock.js`, the ant farm included. |
+| X3 | P1 ✓ | **Click vs. drag.** Flowers, trees and jellyfish act on `pointerdown`, so every orbit drag (and every click on the Tweakpane panel) plants a flower / fires a burst / pushes jellies. Add a helper that fires only on a short, low-movement click that started on the canvas. **Done** with `onClick` from `shared/input.js`. |
+| X4 | P1 ✓ | **Ad-hoc animation loops.** Pond, aquarium and blood vessel animate ripples, flashes and scars with their own `requestAnimationFrame` / `setInterval` / `setTimeout`, so they ignore pause and speed. Route them through the main ticker. **Done:** routed through an in-loop effects list (pond, blood vessel) or the step function (aquarium). |
+| X5 | P1 ✓ | **Object disposal.** Removed Pixi `Graphics` are never `destroy()`ed (pond, blood vessel); Three meshes removed from the scene keep their geometry/material (aquarium food, space galaxy textures). Add a `remove(entity)` helper per engine. **Done** for the cases listed. |
 | X6 | P2 | **Spatial hashing.** Aquarium boids, pond predators, soil bacteria, and blood vessel RBC/WBC each scan every entity every frame (O(n²)). One uniform-grid helper serves all four. |
 | X7 | P3 | **Mobile layout.** Tweakpane and the custom side panels cover a third or more of a phone screen. Start panels collapsed under ~700px and make sure every tool has a touch equivalent (aquarium relies on double-click and right-click). |
 | X8 | P3 | **Docs match reality.** Hub README claims InstancedMesh for the aquarium (it uses ~20 meshes per fish) and "predator avoidance" (no predator exists); pond and soil READMEs describe organisms and tools that were never built (diatoms, vorticella, nematodes, protozoa, focus plane, root stress). Either build them (see P2 items) or move those sections under a "Future ideas" heading. The tech-stack section omits Pixi.js and p5.js. |
@@ -39,7 +39,7 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 | P0 ✓ | Fireflies are fully implemented but never spawned ([script.js:183](simulations/trees/script.js#L183)). Spawn them at night near the ground, capped, with a pooled light count (each `PointLight` adds shader cost). |
 | P0 ✓ | `butterflyCount` and `shrubCount` sliders do nothing ([script.js:588](simulations/trees/script.js#L588)). Wire them to rebuild, or remove them. |
 | P1 | `Object.assign(moonLight.shadow, sunLight.shadow)` ([script.js:87](simulations/trees/script.js#L87)) shares one shadow camera/map between two lights. Give the moon its own shadow, or disable moon shadows and keep one 2048 map. |
-| P1 | `pane.refresh()` every frame ([script.js:602](simulations/trees/script.js#L602)) and three `new THREE.Color()` per frame. Refresh at ~4 Hz; hoist the colours. |
+| P1 (part ✓) | `pane.refresh()` every frame ([script.js:602](simulations/trees/script.js#L602)) and three `new THREE.Color()` per frame. Refresh at ~4 Hz; hoist the colours. *The refresh is throttled to 4 Hz; the per-frame `Color` allocations remain.* |
 | P1 | 4,000 single-triangle grass blades cast shadows. Turn off `castShadow` on grass. |
 | P2 | Butterflies flap from the wing centre; move the pivot to the body edge. Stars sit in a ±100 cube that includes below-ground; place them on a sky dome. |
 | P3 | Sky colour switches abruptly at the 0.2 sun-height threshold; use a continuous gradient keyed to sun elevation. |
@@ -63,7 +63,7 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 | P0 ✓ | `dt` is always ~0: `getElapsedTime()` ([script.js:317](simulations/jellyfish/script.js#L317)) already calls `getDelta()` internally, so the following `getDelta()` returns nothing. `phase` never advances. Call `getDelta()` once and accumulate time yourself. |
 | P0 ✓ | `count`, `speed` and `tentacleLength` are unused; the `count` slider is bound with a "skip for now" comment ([script.js:346](simulations/jellyfish/script.js#L346)). The colour picker updates bells but not tentacles. |
 | **P1** | Every frame rebuilds 120 `TubeGeometry` objects ([script.js:253](simulations/jellyfish/script.js#L253)). Keep a fixed-size tube buffer and rewrite its vertex positions, or draw tentacles as `Line2`/ribbon geometry updated in place. |
-| P1 | The tentacle inverse matrix uses last frame's `matrixWorld`, so tentacles lag their bell by a frame. Call `pivot.updateMatrixWorld()` first. |
+| P1 ✓ | The tentacle inverse matrix uses last frame's `matrixWorld`, so tentacles lag their bell by a frame. Call `pivot.updateMatrixWorld()` first. |
 | P2 | Jellies only bob in place. Add pulse-driven locomotion (thrust on the contraction stroke, drift on relaxation) so the bell pulse actually propels them, with soft bounds so the sonar push can't send them away for good (vertical impulse is currently discarded because `y` is overwritten each frame). |
 | P2 | Tentacle nodes are position-only. Switch to Verlet integration so they trail and swing with momentum. |
 | P3 | Bloom threshold 0.1 makes the marine snow glow as much as the jellies; raise it and give the bells an emissive rim instead. |
@@ -75,7 +75,7 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 | P0 ✓ | Fish anatomy is reversed. The head is +Z, but the mouth sits at −0.42 Z ([script.js:339](simulations/aquarium/script.js#L339)), on the tail, and the anal fin is at the front. The left pectoral and ventral fins reuse the right-side geometry without mirroring it, so they point inward and forward. |
 | P0 ✓ | Eaten food is moved to y = −999 ([script.js:649](simulations/aquarium/script.js#L649)) and never removed or disposed. |
 | **P1** | Heaviest page in the hub (~1 fps in software rendering vs. ~14 for the ant farm). Causes: ~20 meshes and 6 materials per fish (3,000+ draw calls at 150 fish), and a `MeshPhysicalMaterial` with `transmission` on each bubble ([script.js:712](simulations/aquarium/script.js#L712)), which forces an extra transmission render pass. Merge each fish into one skinned or vertex-animated mesh rendered via `InstancedMesh` (tail swing in the vertex shader), and use a cheap additive sprite for bubbles. |
-| P1 | Physics is per-frame with no `dt`; `scareTimer -= 0.016` ([script.js:1012](simulations/aquarium/script.js#L1012)) assumes 60 fps. Flocking allocates several `Vector3`s per neighbour pair ([script.js:583](simulations/aquarium/script.js#L583)). |
+| P1 (part ✓) | Physics is per-frame with no `dt`; `scareTimer -= 0.016` ([script.js:1012](simulations/aquarium/script.js#L1012)) assumes 60 fps. Flocking allocates several `Vector3`s per neighbour pair ([script.js:583](simulations/aquarium/script.js#L583)). *Fixed-step physics and the scare timer are done; the flocking allocations remain.* |
 | P2 | Fish are bounded by a sphere inside a box tank, so they ignore the walls, swim through rocks and sand, and never use the corners. Use box bounds with soft wall steering and obstacle avoidance. |
 | P2 | Add the predator the README promises (one larger fish whose approach triggers schooling and flight), species-specific schooling (fish align with their own colour), and food that settles on the sand where fish forage. |
 | P3 | Double-click and right-click have no touch equivalent; add toolbar buttons. |
@@ -87,7 +87,7 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 | P0 ✓ | Station blink lights set `opacity` on a non-transparent material ([script.js:247](simulations/space/script.js#L247)), so they never blink. |
 | P0 ✓ | "Randomize Adventure" sets every frequency up to 0.02 ([script.js:584](simulations/space/script.js#L584)), 100× the default for black holes. Randomize within each slider's own range. |
 | P0 ✓ | Scanner text sticks on "GRAVITY ANOMALY" after a black hole passes unless the mouse is released; touch never updates the scanner text. Warp also triggers when clicking the back button. Switch to pointer events with a single state function. |
-| P1 | Spawning is `Math.random() < freq` per frame ([script.js:697](simulations/space/script.js#L697)), so a 144 Hz display sees 2.4× as many objects. Express frequencies per second or per unit distance travelled. |
+| P1 ✓ | Spawning is `Math.random() < freq` per frame ([script.js:697](simulations/space/script.js#L697)), so a 144 Hz display sees 2.4× as many objects. Express frequencies per second or per unit distance travelled. *Spawn rolls are now per fixed step.* |
 | P1 | Every galaxy creates a new canvas texture ([script.js:469](simulations/space/script.js#L469)) that `dispose()` never frees; every asteroid creates its own geometry and material. Share one sprite texture and pool asteroids with an `InstancedMesh`. |
 | P2 | Galaxies are tiny (radius ~20, point size 0.2) and indistinct. Use a proper log-spiral arm distribution with a bright core and colour gradient. The sun never moves, so the voyage never passes a star; make it a spawnable object. |
 | P3 | The HUD font `'OCR A Std'` isn't loaded, so it falls back to the default monospace. `starSize` really controls opacity; rename it. |
@@ -127,7 +127,7 @@ Most sims repeat the same boilerplate and the same mistakes. A small shared modu
 | P0 ✓ | The default view already reads BP 140/93 and 33% plaque (verified): cholesterol sticks immediately. Start from a healthy baseline and let plaque accumulate over minutes. |
 | P0 ✓ | The fever vignette's "clear centre" is a zero-alpha fill on top of a red fill ([script.js:198](simulations/blood_vessel/script.js#L198)), which clears nothing; the whole screen tints. Use a radial gradient sprite. |
 | P1 | Nothing handles resize: the background rect ([script.js:93](simulations/blood_vessel/script.js#L93)), ECG position and vessel radius are fixed at load. |
-| P1 | Clot lifetime counts frames, not `delta` ([Platelet.js:59](simulations/blood_vessel/classes/Platelet.js#L59)). Each RBC scans every entity for clot collisions. |
+| P1 (part ✓) | Clot lifetime counts frames, not `delta` ([Platelet.js:59](simulations/blood_vessel/classes/Platelet.js#L59)). Each RBC scans every entity for clot collisions. *Clot age now counts `delta`; the per-RBC scan remains.* |
 | P2 | Platelets only stick inside the wound radius; aggregation onto other platelets (DESIGN.md step 4) and the fibrin mesh (step 6) aren't built, so clots stay one layer thick and never block flow. RBCs pass through each other. |
 | P2 | Leukocyte margination and rolling from DESIGN.md: WBCs should drift to the wall and roll slowly along it. |
 | P3 | The control panel covers ~40% of an 800 px-wide screen (verified). Make it collapsible like the pond and ant farm panels. |
@@ -138,7 +138,7 @@ The most mature sim: a clean config, documented invariants, and no visible bugs 
 
 | Pri | Refinement |
 |-----|-----------|
-| P1 | `simSpeed` is ticks per rendered frame ([script.js:214](simulations/ant_farm/script.js#L214)), so colonies age 2.4× faster on a 144 Hz display. Use a ticks-per-second accumulator. |
+| P1 ✓ | `simSpeed` is ticks per rendered frame ([script.js:214](simulations/ant_farm/script.js#L214)), so colonies age 2.4× faster on a 144 Hz display. Use a ticks-per-second accumulator. *Now ticks per fixed step.* |
 | P1 | Commit the headless runner the README describes and assert its health checks (queen laying, food delivered, tunnel volume growing, no floating brood) in CI. See X9. |
 | P2 | Add a **reset / new colony** button and a seeded RNG (36 `Math.random()` calls in `classes/`) so a run can be replayed and bug reports reproduced. |
 | P2 | Add a population-over-time graph (the pond already has one) so the colony's growth and famine phases are visible without watching the stats tick. |

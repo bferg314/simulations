@@ -24,8 +24,8 @@ class SoilParticle {
 
         // Organic matter has slight movement (decomposition/worms)
         if (this.type === 1 && this.size > 3) {
-            this.pos.x += map(noise(frameCount * 0.01 + this.noiseOffset), 0, 1, -0.1, 0.1);
-            this.pos.y += map(noise(frameCount * 0.01 + this.noiseOffset + 100), 0, 1, -0.05, 0.1);
+            this.pos.x += map(noise(simTicks * 0.01 + this.noiseOffset), 0, 1, -0.1, 0.1);
+            this.pos.y += map(noise(simTicks * 0.01 + this.noiseOffset + 100), 0, 1, -0.05, 0.1);
             // Slowly shrink (abiotic breakdown; bacteria do most of the work)
             this.size -= 0.0005;
         }

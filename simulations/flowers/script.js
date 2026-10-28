@@ -3,6 +3,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Tweakpane is loaded via script tag in global scope or via import if using module version
 // Specifically for the CDN import map above, we can import from the mapped URL
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { onClick } from '../../shared/input.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Configuration
 const CONFIG = {
@@ -342,6 +345,7 @@ camera.position.set(0, 3, 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 document.getElementById('canvas-container').appendChild(renderer.domElement);
 
@@ -415,17 +419,19 @@ tab.pages[1].addBinding(CONFIG, 'groundColor').on('change', () => ground.materia
 tab.pages[1].addBinding(CONFIG, 'stemColor').on('change', () => flowers.forEach(f => f.updateColors()));
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
 
-function animate() {
+function animate(now) {
     requestAnimationFrame(animate);
 
-    const dt = clock.getDelta();
-    const time = clock.getElapsedTime();
+    const steps = clock.frame(now);
 
     controls.update();
 
-    flowers.forEach(flower => flower.update(dt, time));
+    for (let i = 0; i < steps; i++) {
+        flowers.forEach(flower => flower.update(clock.step, clock.time));
+    }
 
     renderer.render(scene, camera);
 }
@@ -441,7 +447,8 @@ window.addEventListener('resize', () => {
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-window.addEventListener('pointerdown', (event) => {
+// Click (not drag) on the ground to plant
+onClick(renderer.domElement, (event) => {
     // Calculate pointer position in normalized device coordinates
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -460,4 +467,4 @@ window.addEventListener('pointerdown', (event) => {
     }
 });
 
-animate();
+requestAnimationFrame(animate);

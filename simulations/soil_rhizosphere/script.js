@@ -13,6 +13,11 @@ const ROOT_EXUDATE = 4;
 let exudateShare = 0;
 // Organic mass at the start, the reference for the nutrient reading
 let baselineOrganic = 1;
+// Fixed-timestep clock from shared/clock.js (exposed by index.html)
+let clock;
+// Simulation steps so far. Animations read this rather than p5's frameCount,
+// which keeps counting while the simulation is paused.
+let simTicks = 0;
 
 // Zoom and pan state
 let zoomLevel = 1;
@@ -35,6 +40,9 @@ function setup() {
     // Initialize Fungal Network - attach to root system
     fungi = new FungalNetwork();
     fungi.attachToRoot(rootSystem);
+
+    clock = new FixedClock();
+    mountPlayback(clock);
 
     // UI Events
     setupUI();
@@ -72,6 +80,17 @@ function draw() {
     let worldMouseX = (mouseX - panX) / zoomLevel;
     let worldMouseY = (mouseY - panY) / zoomLevel;
     handleInput(worldMouseX, worldMouseY);
+
+    const steps = clock.frame(performance.now());
+    for (let i = 0; i < steps; i++) step();
+
+    // Rendering
+    renderWorld(worldMouseX, worldMouseY);
+}
+
+// One fixed simulation step: growth, decomposition and the bacterial lifecycle
+function step() {
+    simTicks++;
     fungi.grow(particles, rootSystem);
 
     // Update soil particles
@@ -108,8 +127,9 @@ function draw() {
     if (particles.some(p => p.consumed)) {
         particles = particles.filter(p => !p.consumed);
     }
+}
 
-    // Rendering
+function renderWorld(worldMouseX, worldMouseY) {
     // 1. Soil
     for (let p of particles) {
         p.display();

@@ -4,6 +4,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FixedClock } from '../../shared/clock.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 const ChromaticAberrationShader = {
     uniforms: {
@@ -193,7 +195,7 @@ class BlackHole {
     update(speed) {
         this.group.position.z += speed;
         this.disk.rotation.z += 0.05;
-        this.photonSphere.scale.setScalar(1 + Math.sin(Date.now() * 0.005) * 0.1);
+        this.photonSphere.scale.setScalar(1 + Math.sin(clock.time * 5) * 0.1);
 
         // Tilt slightly towards camera
         this.group.lookAt(camera.position);
@@ -244,7 +246,7 @@ class SpaceStation {
     update(speed) {
         this.group.position.z += speed;
         this.group.rotation.z += 0.01;
-        const on = Math.sin(Date.now() * 0.01) > 0;
+        const on = Math.sin(clock.time * 10) > 0;
         this.lights.forEach(l => { l.visible = on; });
     }
 
@@ -467,7 +469,7 @@ class Galaxy {
             blending: THREE.AdditiveBlending,
             depthWrite: false,
             transparent: true,
-            map: getGradientTexture() // Helper function for soft particles
+            map: softParticleTexture
         });
 
         this.mesh = new THREE.Points(geom, mat);
@@ -492,7 +494,10 @@ class Galaxy {
     }
 }
 
-// Generate simple circle texture for particles
+// Generate simple circle texture for particles. Built once and shared by every
+// galaxy; a texture per galaxy was never freed when the galaxy was.
+const softParticleTexture = getGradientTexture();
+
 function getGradientTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 32;
@@ -605,7 +610,8 @@ pane.addButton({
 
 
 // Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
 let speedMultiplier = 1.0;
 let targetMultiplier = 1.0;
 
@@ -636,10 +642,16 @@ function setScannerText(text) {
     }
 }
 
-function animate() {
+function animate(now) {
     requestAnimationFrame(animate);
 
-    const delta = clock.getDelta();
+    const steps = clock.frame(now);
+    for (let i = 0; i < steps; i++) step(clock.step);
+    composer.render();
+}
+
+// One fixed simulation step: travel, spawning, and the warp effects
+function step(delta) {
 
     // Smoothly transition speed
     speedMultiplier += (targetMultiplier - speedMultiplier) * 3 * delta;
@@ -648,7 +660,7 @@ function animate() {
     let baseFov = 60 + (speedMultiplier - 1) * 3;
     let heartbeat = 0;
     if (speedMultiplier > 5) {
-        heartbeat = Math.sin(Date.now() * 0.01) * (speedMultiplier - 5) * 0.5;
+        heartbeat = Math.sin(clock.time * 10) * (speedMultiplier - 5) * 0.5;
     }
     camera.fov = baseFov + heartbeat;
     camera.updateProjectionMatrix();
@@ -823,7 +835,6 @@ function animate() {
         setScannerText(targetMultiplier > 1 ? 'SCANNER: SCANNING...' : 'SCANNER: IDLE');
     }
 
-    composer.render();
 }
 
 // Resize
@@ -845,4 +856,4 @@ for (let i = 0; i < 20; i++) {
     asteroids.push(new Asteroid(-Math.random() * 500));
 }
 
-animate();
+requestAnimationFrame(animate);

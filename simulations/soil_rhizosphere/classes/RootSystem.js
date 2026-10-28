@@ -28,14 +28,14 @@ class RootSystem {
             let p = this.structure[i];
             let thickness = map(i, 0, this.structure.length, 15, 2);
             // Add some noise to thickness
-            thickness += map(noise(i * 0.2, frameCount * 0.01), 0, 1, -2, 2);
+            thickness += map(noise(i * 0.2, simTicks * 0.01), 0, 1, -2, 2);
             vertex(p.x - thickness, p.y);
         }
         // Right side of root (going back up)
         for (let i = this.structure.length - 1; i >= 0; i--) {
             let p = this.structure[i];
             let thickness = map(i, 0, this.structure.length, 15, 2);
-            thickness += map(noise(i * 0.2, frameCount * 0.01 + 100), 0, 1, -2, 2);
+            thickness += map(noise(i * 0.2, simTicks * 0.01 + 100), 0, 1, -2, 2);
             vertex(p.x + thickness, p.y);
         }
         endShape(CLOSE);

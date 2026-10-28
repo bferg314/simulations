@@ -3,6 +3,11 @@ import { WBC } from './classes/WBC.js';
 import { Platelet } from './classes/Platelet.js';
 import { Pathogen } from './classes/Pathogen.js';
 import { Cholesterol } from './classes/Cholesterol.js';
+import { FixedClock } from '../../shared/clock.js';
+import { mountPlayback } from '../../shared/playback.js';
+
+// Fixed 60 Hz steps; each is one 60 fps frame of the original tuning (delta 1)
+const clock = new FixedClock();
 
 // Configuration
 const CONFIG = {
@@ -89,7 +94,11 @@ async function init() {
     setupInteractions();
 
     // Loop
-    state.app.ticker.add((delta) => gameLoop(delta));
+    state.app.ticker.add(() => {
+        const steps = clock.frame(performance.now());
+        for (let i = 0; i < steps; i++) gameLoop(1);
+    });
+    mountPlayback(clock);
 }
 
 function createBackground() {
@@ -326,14 +335,25 @@ function spawnPathogen(x, y) {
 
     // Fade out
     let alpha = 0.3;
-    const fadeInterval = setInterval(() => {
+    addEffect(() => {
         alpha -= 0.02;
         flash.alpha = alpha;
-        if (alpha <= 0) {
-            clearInterval(fadeInterval);
-            state.container.removeChild(flash);
-        }
-    }, 16);
+        if (alpha > 0) return true;
+        flash.destroy();
+        return false;
+    });
+}
+
+// Short-lived visual effects, advanced once per simulation step. Each is a
+// function that returns true while it is still running.
+let effects = [];
+
+function addEffect(effect) {
+    effects.push(effect);
+}
+
+function updateEffects() {
+    effects = effects.filter(effect => effect());
 }
 
 function spawnCholesterol() {
@@ -413,7 +433,7 @@ function gameLoop(delta) {
     // Clean up dead pathogens
     state.entities = state.entities.filter(e => {
         if (e.constructor.name === 'Pathogen' && !e.isAlive) {
-            state.container.removeChild(e.sprite);
+            e.sprite.destroy({ children: true });
             return false;
         }
         return true;
@@ -517,7 +537,12 @@ function gameLoop(delta) {
                 const x = Math.random() * state.app.screen.width;
                 createDamage(x, nearestWallY(Math.random() > 0.5 ? 0 : state.app.screen.height));
                 state.container.x = (Math.random() - 0.5) * 10;
-                setTimeout(() => state.container.x = 0, 100);
+                let shake = 6; // steps, about 100 ms
+                addEffect(() => {
+                    if (--shake > 0) return true;
+                    state.container.x = 0;
+                    return false;
+                });
             }
         } else {
             bpLabel.style.color = 'white';
@@ -531,6 +556,7 @@ function gameLoop(delta) {
                 effectiveHR > 100 ? '#fbbf24' : 'white';
     }
 
+    updateEffects();
     frameCount++;
 }
 let frameCount = 0;
@@ -671,15 +697,13 @@ function updateDamageZones(delta) {
             }
             // Fade out scar
             if (zone.scarGraphics) {
-                let scarAlpha = zone.scarGraphics.alpha;
-                const fadeInterval = setInterval(() => {
-                    scarAlpha -= 0.02;
-                    zone.scarGraphics.alpha = scarAlpha;
-                    if (scarAlpha <= 0) {
-                        clearInterval(fadeInterval);
-                        zone.scarGraphics.destroy();
-                    }
-                }, 50);
+                const scar = zone.scarGraphics;
+                addEffect(() => {
+                    scar.alpha -= 0.0067; // about 2.5 s
+                    if (scar.alpha > 0) return true;
+                    scar.destroy();
+                    return false;
+                });
             }
             // Remove from array
             state.damageZones.splice(i, 1);
@@ -724,19 +748,20 @@ function setupUI() {
                 state.app.stage.addChild(flash);
 
                 let alpha = 0.4;
-                const fadeInterval = setInterval(() => {
+                addEffect(() => {
                     alpha -= 0.03;
                     flash.alpha = alpha;
-                    if (alpha <= 0) {
-                        clearInterval(fadeInterval);
-                        state.app.stage.removeChild(flash);
-                    }
-                }, 16);
+                    if (alpha > 0) return true;
+                    flash.destroy();
+                    return false;
+                });
 
-                // Remove active class after duration
-                setTimeout(() => {
+                // Button stays lit until the adrenaline wears off
+                addEffect(() => {
+                    if (state.adrenalineActive) return true;
                     adrenalineBtn.classList.remove('active');
-                }, state.adrenalineDuration * 16);
+                    return false;
+                });
             }
         });
     }
@@ -920,14 +945,13 @@ function createPulseWave(x, y) {
 
     // Fade ping
     let pingAlpha = 0.6;
-    const pingFade = setInterval(() => {
+    addEffect(() => {
         pingAlpha -= 0.05;
         ping.alpha = pingAlpha;
-        if (pingAlpha <= 0) {
-            clearInterval(pingFade);
-            state.container.removeChild(ping);
-        }
-    }, 16);
+        if (pingAlpha > 0) return true;
+        ping.destroy();
+        return false;
+    });
 }
 
 // Update pulse waves in game loop

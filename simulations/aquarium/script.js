@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Configuration
 const CONFIG = {
@@ -809,14 +811,13 @@ class FishFood {
         scene.add(this.mesh);
     }
 
-    update() {
+    update(time) {
         if (!this.alive) return;
 
         // Sink slowly
         this.mesh.position.y -= 0.03;
 
         // Flutter effect
-        const time = performance.now() / 1000;
         this.mesh.rotation.x += Math.sin(time * this.flutterSpeed + this.flutterOffset) * 0.05;
         this.mesh.rotation.z += Math.cos(time * this.flutterSpeed * 0.8 + this.flutterOffset) * 0.05;
         this.mesh.position.x += Math.sin(time * 2 + this.flutterOffset) * 0.005; // Drift X
@@ -934,24 +935,26 @@ function createScareRipple(position) {
     ripple.lookAt(camera.position);
     scene.add(ripple);
 
-    // Animate ripple
-    const startTime = performance.now();
-    function animateRipple() {
-        const elapsed = (performance.now() - startTime) / 1000;
-        if (elapsed > 0.5) {
-            scene.remove(ripple);
-            rippleGeo.dispose();
-            rippleMat.dispose();
-            return;
+    ripples.push({ mesh: ripple, age: 0 });
+}
+
+// Expanding rings from glass taps, advanced with the simulation
+const ripples = [];
+
+function updateRipples(dt) {
+    for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+        r.age += dt;
+        if (r.age > 0.5) {
+            scene.remove(r.mesh);
+            r.mesh.geometry.dispose();
+            r.mesh.material.dispose();
+            ripples.splice(i, 1);
+            continue;
         }
-
-        const scale = 1 + elapsed * 20;
-        ripple.scale.set(scale, scale, scale);
-        rippleMat.opacity = 0.6 * (1 - elapsed * 2);
-
-        requestAnimationFrame(animateRipple);
+        r.mesh.scale.setScalar(1 + r.age * 20);
+        r.mesh.material.opacity = 0.6 * (1 - r.age * 2);
     }
-    animateRipple();
 }
 
 // TANK (Glass Box)
@@ -1007,16 +1010,13 @@ for (const source of bubbleSources) {
 }
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
 
-function animate() {
-    requestAnimationFrame(animate);
-
-    const time = clock.getElapsedTime();
-
+function step(dt, time) {
     // Update scare timer
     if (scareTimer > 0) {
-        scareTimer -= 0.016; // ~60fps
+        scareTimer -= dt;
     }
 
     // Update fish
@@ -1026,7 +1026,7 @@ function animate() {
 
     // Update Food
     for (let i = foods.length - 1; i >= 0; i--) {
-        foods[i].update();
+        foods[i].update(time);
         if (!foods[i].alive) {
             foods[i].dispose();
             foods.splice(i, 1);
@@ -1038,11 +1038,22 @@ function animate() {
         bubble.update(time);
     }
 
-    controls.update();
+    updateRipples(dt);
+}
+
+function animate(now) {
+    requestAnimationFrame(animate);
+
+    const steps = clock.frame(now);
+    for (let i = 0; i < steps; i++) step(clock.step, clock.time);
+
+    // Auto-rotate by real time (not per call, which tied it to refresh rate),
+    // and hold still while paused
+    controls.update(clock.paused ? 0 : clock.realDelta);
     renderer.render(scene, camera);
 }
 
-animate();
+requestAnimationFrame(animate);
 
 // Resizing
 window.addEventListener('resize', () => {
@@ -1081,6 +1092,7 @@ instructions.innerHTML = `
     <strong>🐠 Aquarium Controls</strong><br>
     Double-Click: Drop food<br>
     Press F: Drop food at center<br>
-    Right Click: Tap the glass (scare fish!)
+    Right Click: Tap the glass (scare fish!)<br>
+    Space: Pause
 `;
 document.body.appendChild(instructions);

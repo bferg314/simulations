@@ -73,6 +73,15 @@
     </div>
 
     <!-- Script -->
+    <!-- The shared clock is an ES module; these scripts are classic p5 global
+         mode. Module scripts run before the load event that starts p5, so
+         setup() can find it on window. -->
+    <script type="module">
+        import { FixedClock } from '../../shared/clock.js';
+        import { mountPlayback } from '../../shared/playback.js';
+        window.FixedClock = FixedClock;
+        window.mountPlayback = mountPlayback;
+    </script>
     <script src="classes/SoilParticle.js"></script>
     <script src="classes/RootSystem.js"></script>
     <script src="classes/FungalNetwork.js"></script>

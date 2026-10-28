@@ -5,6 +5,9 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { onClick } from '../../shared/input.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Configuration
 const CONFIG = {
@@ -220,7 +223,7 @@ class MagicBurst {
 
     spawn(pos) {
         this.ripplePos.copy(pos);
-        this.rippleTime = clock.getElapsedTime();
+        this.rippleTime = clock.time;
 
         this.light.position.copy(pos);
         this.light.intensity = 10;
@@ -280,7 +283,8 @@ const magicSystem = new MagicBurst(scene);
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-window.addEventListener('pointerdown', (event) => {
+// Click (not drag) on the ground for a burst
+onClick(renderer.domElement, (event) => {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -626,7 +630,6 @@ tapPhy.pages[1].addBinding(CONFIG, 'bloomThreshold', { min: 0, max: 1 }).on('cha
 function updateEnvironment(time) {
     if (CONFIG.autoCycle) {
         CONFIG.timeOfDay = (time % CONFIG.dayDuration) / CONFIG.dayDuration;
-        pane.refresh();
     }
 
     const angle = (CONFIG.timeOfDay * Math.PI * 2) + (Math.PI / 2);
@@ -693,20 +696,31 @@ function updateEnvironment(time) {
 
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
+let lastPaneRefresh = 0;
 
-function animate() {
+function animate(now) {
     requestAnimationFrame(animate);
 
-    const delta = clock.getDelta();
-    const time = clock.getElapsedTime();
+    const steps = clock.frame(now);
 
     controls.update();
 
-    updateEnvironment(time);
+    for (let i = 0; i < steps; i++) {
+        updateEnvironment(clock.time);
+        magicSystem.update(clock.step);
+        fireflies.forEach(f => f.update(clock.step, clock.time));
+        butterflies.forEach(b => b.update(clock.step, clock.time));
+    }
 
-    // Update system effects
-    magicSystem.update(delta);
+    // Keep the time-of-day slider moving without rebuilding the pane every frame
+    if (CONFIG.autoCycle && now - lastPaneRefresh > 250) {
+        pane.refresh();
+        lastPaneRefresh = now;
+    }
+
+    const time = clock.time;
 
     // Update Shaders
     if (treeMaterial.userData.shader) {
@@ -721,11 +735,6 @@ function animate() {
         grassMat.userData.shader.uniforms.rippleTime.value = magicSystem.rippleTime;
     }
 
-    fireflies.forEach(f => f.update(delta, time));
-
-    // Update Butterflies
-    butterflies.forEach(b => b.update(delta, time));
-
     composer.render();
 }
 
@@ -736,4 +745,4 @@ window.addEventListener('resize', () => {
     composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-animate();
+requestAnimationFrame(animate);

@@ -98,5 +98,11 @@ A high-fidelity hemodynamic simulation inside a blood vessel.
 3. **Open in Browser**
    Navigate to `http://localhost:8000` (or whatever port your server uses).
 
+## 🧩 Shared Modules
+`shared/` holds the small pieces every simulation uses:
+- `clock.js`: a fixed-timestep clock. Simulation logic advances in 1/60 s steps however fast the display refreshes, pauses when the tab is hidden, and won't replay a long stall as a burst.
+- `input.js`: tells a click from a camera drag, so orbiting doesn't plant or push things.
+- `playback.js`: the pause and speed buttons (and Space to pause) for sims without a toolbar of their own.
+
 ## 📄 License
 This project is open source and available under the [MIT License](LICENSE).

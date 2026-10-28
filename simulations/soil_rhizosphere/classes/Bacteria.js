@@ -113,7 +113,7 @@ class Bacteria {
 
     display() {
         // Pulsing glow effect
-        let pulse = sin(frameCount * 0.05 + this.pulsePhase) * 0.3 + 0.7;
+        let pulse = sin(simTicks * 0.05 + this.pulsePhase) * 0.3 + 0.7;
         let baseAlpha = map(this.energy, 0, 100, 80, 220);
 
         push();
