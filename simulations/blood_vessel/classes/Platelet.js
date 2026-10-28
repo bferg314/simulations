@@ -56,7 +56,7 @@ export class Platelet {
             this.sprite.y = this.y;
 
             // HEALING LOGIC: Dissolve clot over time
-            this.clotLife = (this.clotLife || 0) + 1;
+            this.clotLife = (this.clotLife || 0) + delta;
             if (this.clotLife > 1000) { // Approx 16 seconds at 60fps
                 this.state = 'active'; // Detach but stay activated briefly?
                 // Or just reset fully

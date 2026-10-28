@@ -12,6 +12,8 @@ class SoilParticle {
         this.moisture = 0; // 0 to 1
         this.noiseOffset = random(1000); // For organic wiggle
         this.rotation = random(TWO_PI);
+        // Fixed fibre directions; picking them in display() made them flicker
+        this.fibers = [random(TWO_PI), random(TWO_PI)];
     }
 
     update() {
@@ -22,10 +24,10 @@ class SoilParticle {
 
         // Organic matter has slight movement (decomposition/worms)
         if (this.type === 1 && this.size > 3) {
-            this.pos.x += map(noise(frameCount * 0.01 + this.noiseOffset), 0, 1, -0.1, 0.1);
-            this.pos.y += map(noise(frameCount * 0.01 + this.noiseOffset + 100), 0, 1, -0.05, 0.1);
-            // Slowly shrink (decomposition)
-            this.size = max(2, this.size - 0.0005);
+            this.pos.x += map(noise(simTicks * 0.01 + this.noiseOffset), 0, 1, -0.1, 0.1);
+            this.pos.y += map(noise(simTicks * 0.01 + this.noiseOffset + 100), 0, 1, -0.05, 0.1);
+            // Slowly shrink (abiotic breakdown; bacteria do most of the work)
+            this.size -= 0.0005;
         }
     }
 
@@ -55,8 +57,7 @@ class SoilParticle {
             // Little "fibers" for organic
             stroke(80, 60, 40, 100);
             strokeWeight(0.5);
-            for (let i = 0; i < 2; i++) {
-                let ang = random(TWO_PI);
+            for (const ang of this.fibers) {
                 line(0, 0, cos(ang) * this.size * 0.8, sin(ang) * this.size * 0.8);
             }
         } else if (this.type === 2) {

@@ -6,6 +6,7 @@ import { World, TYPE_AIR, TYPE_DIRT } from './classes/World.js';
 import { Colony } from './classes/Colony.js';
 import { Food } from './classes/Food.js';
 import { SoilPainter, buildEnclosure, PLANE_W, PLANE_H } from './render.js';
+import { FixedClock } from '../../shared/clock.js';
 
 // --- Simulation ---------------------------------------------------------
 
@@ -208,10 +209,15 @@ function refreshStats() {
 
 let frame = 0;
 
-function animate() {
+// simSpeed is sim ticks per 1/60 s step, so a colony ages at the same rate on
+// a 60 Hz and a 144 Hz display.
+const clock = new FixedClock();
+
+function animate(now) {
     requestAnimationFrame(animate);
 
-    for (let i = 0; i < simSpeed; i++) {
+    const ticks = clock.frame(now) * simSpeed;
+    for (let i = 0; i < ticks; i++) {
         world.update();
         colony.update(world);
     }
@@ -227,4 +233,4 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-animate();
+requestAnimationFrame(animate);

@@ -3,6 +3,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Tweakpane is loaded via script tag in global scope or via import if using module version
 // Specifically for the CDN import map above, we can import from the mapped URL
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { onClick } from '../../shared/input.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Configuration
 const CONFIG = {
@@ -37,23 +40,18 @@ class Flower {
         this.maxAge = CONFIG.lifeSpan + (Math.random() * 2 - 1); // Variance
         this.scale = 0;
 
-        // Pick a random type
-        this.typeData = FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)];
-
-        // Random characteristics
-        this.height = 1.5 + Math.random() * 1.5;
         this.bend = (Math.random() - 0.5) * 0.5;
 
         // Group to hold stem and petals
         this.mesh = new THREE.Group();
         this.mesh.position.set(x, 0, z);
+        this.mesh.scale.setScalar(0); // hidden until it sprouts
 
-        // Stem
-        const stemGeo = new THREE.CylinderGeometry(0.02, 0.05, this.height, 5);
-        stemGeo.translate(0, this.height / 2, 0); // Pivot at bottom
+        // Stem (geometry is built by pickShape)
         const stemMat = new THREE.MeshStandardMaterial({ color: CONFIG.stemColor, roughness: 0.8 });
-        this.stem = new THREE.Mesh(stemGeo, stemMat);
+        this.stem = new THREE.Mesh(new THREE.BufferGeometry(), stemMat);
         this.mesh.add(this.stem);
+        this.pickShape();
 
         // Flower Head
         this.headGroup = new THREE.Group();
@@ -62,6 +60,24 @@ class Flower {
         this.mesh.add(this.headGroup);
 
         scene.add(this.mesh);
+    }
+
+    // Choose a flower type and size the stem for it. Height has to be final
+    // before the stem is built and the head is positioned, or the head floats
+    // off the top of a sunflower's stem.
+    pickShape() {
+        this.typeData = FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)];
+        this.height = 1.5 + Math.random() * 1.5;
+        let radius = 1;
+        if (this.typeData.type === 'sunflower') {
+            this.height *= 1.2; // Taller
+            radius = 1.5;       // Thicker stem
+        }
+
+        this.stem.geometry.dispose();
+        const stemGeo = new THREE.CylinderGeometry(0.02 * radius, 0.05 * radius, this.height, 5);
+        stemGeo.translate(0, this.height / 2, 0); // Pivot at bottom
+        this.stem.geometry = stemGeo;
     }
 
     buildHead() {
@@ -115,9 +131,6 @@ class Flower {
 
             case 'sunflower':
                 {
-                    this.height *= 1.2; // Taller
-                    this.stem.scale.set(1.5, 1.2, 1.5); // Thicker stem
-
                     // Large Center
                     const centerGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 12);
                     centerGeo.rotateX(Math.PI / 2);
@@ -244,22 +257,32 @@ class Flower {
 
         this.age += dt * CONFIG.growthSpeed;
 
+        // Not sprouted yet (staggered start)
+        if (this.age < 0) {
+            this.mesh.scale.setScalar(0);
+            return;
+        }
+
+        let droop = 0;
+
         // Growth Phase
         if (this.age < 1) {
-            this.scale = Math.min(this.age, 1);
-            this.mesh.scale.set(this.scale, this.scale, this.scale);
+            this.scale = this.age;
+            this.mesh.scale.setScalar(this.scale);
         }
         // Wither Phase
         else if (this.age > this.maxAge - 1) {
             const deathProgress = 1 - (this.maxAge - this.age);
             // Shrink and droop
             this.mesh.scale.setScalar(Math.max(0, 1 - deathProgress));
-            this.mesh.rotation.z = this.bend + deathProgress;
+            droop = deathProgress;
+        } else {
+            this.mesh.scale.setScalar(1);
         }
 
-        // Wind Effect
+        // Wind Effect (droop leans the withering flower over on top of it)
         this.mesh.rotation.x = Math.sin(time * 2 + this.mesh.position.x) * CONFIG.windStrength;
-        this.mesh.rotation.z = this.bend + Math.cos(time * 1.5 + this.mesh.position.z) * CONFIG.windStrength;
+        this.mesh.rotation.z = this.bend + droop + Math.cos(time * 1.5 + this.mesh.position.z) * CONFIG.windStrength;
 
         // Reset if dead
         if (this.age >= this.maxAge) {
@@ -285,16 +308,8 @@ class Flower {
         // Ideally we dispose geometry/materials of the old head group
         this.cleanupHead();
 
-        this.typeData = FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)];
+        this.pickShape();
         this.headGroup = new THREE.Group();
-        this.headGroup.position.y = this.height; // Reuse height or randomize?
-        // Let's re-randomize height too
-        this.height = 1.5 + Math.random() * 1.5;
-        this.stem.geometry.dispose(); // Dispose old stem geo
-        // Rebuild stem
-        const stemGeo = new THREE.CylinderGeometry(0.02, 0.05, this.height, 5);
-        stemGeo.translate(0, this.height / 2, 0);
-        this.stem.geometry = stemGeo;
         this.headGroup.position.y = this.height;
 
         this.buildHead();
@@ -330,6 +345,7 @@ camera.position.set(0, 3, 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 document.getElementById('canvas-container').appendChild(renderer.domElement);
 
@@ -403,17 +419,19 @@ tab.pages[1].addBinding(CONFIG, 'groundColor').on('change', () => ground.materia
 tab.pages[1].addBinding(CONFIG, 'stemColor').on('change', () => flowers.forEach(f => f.updateColors()));
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
 
-function animate() {
+function animate(now) {
     requestAnimationFrame(animate);
 
-    const dt = clock.getDelta();
-    const time = clock.getElapsedTime();
+    const steps = clock.frame(now);
 
     controls.update();
 
-    flowers.forEach(flower => flower.update(dt, time));
+    for (let i = 0; i < steps; i++) {
+        flowers.forEach(flower => flower.update(clock.step, clock.time));
+    }
 
     renderer.render(scene, camera);
 }
@@ -429,7 +447,8 @@ window.addEventListener('resize', () => {
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-window.addEventListener('pointerdown', (event) => {
+// Click (not drag) on the ground to plant
+onClick(renderer.domElement, (event) => {
     // Calculate pointer position in normalized device coordinates
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -448,4 +467,4 @@ window.addEventListener('pointerdown', (event) => {
     }
 });
 
-animate();
+requestAnimationFrame(animate);

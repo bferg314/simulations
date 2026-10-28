@@ -5,6 +5,9 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { onClick } from '../../shared/input.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Configuration
 const CONFIG = {
@@ -118,6 +121,9 @@ function getGroundHeight(x, z) {
     return y;
 }
 
+// Lay the plane flat in the geometry itself, so vertex Y really is height and
+// X/Z match the world coordinates that trees and rocks are placed at.
+groundGeo.rotateX(-Math.PI / 2);
 const posAttribute = groundGeo.attributes.position;
 for (let i = 0; i < posAttribute.count; i++) {
     const x = posAttribute.getX(i);
@@ -126,61 +132,69 @@ for (let i = 0; i < posAttribute.count; i++) {
 }
 groundGeo.computeVertexNormals();
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// --- FIREFLIES (Interactive) ---
+// --- FIREFLIES ---
+// Glowing dots that the bloom pass turns into halos. Real point lights looked
+// no different at this scale and multiplied the lighting cost of every
+// material in the scene, the grass included.
+const FIREFLY_COUNT = 10;
+let nightFactor = 0; // 0 by day, 1 at full night; set by updateEnvironment
+
 class Firefly {
-    constructor(scene, pos) {
-        this.scene = scene;
-        this.alive = true;
+    constructor(scene) {
+        this.basePos = new THREE.Vector3();
+        this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.09, 8, 8),
+            new THREE.MeshBasicMaterial({
+                color: 0xffffaa,
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            })
+        );
+        this.offsets = new THREE.Vector3();
+        scene.add(this.mesh);
+        this.respawn();
+        this.age = Math.random() * this.maxAge; // stagger the pool
+    }
+
+    respawn() {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random() * 25;
+        const x = Math.cos(angle) * r;
+        const z = Math.sin(angle) * r;
+        this.basePos.set(x, getGroundHeight(x, z) + 0.8 + Math.random() * 1.2, z);
+        this.offsets.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+        this.flickerRate = 6 + Math.random() * 8;
         this.age = 0;
         this.maxAge = 5 + Math.random() * 5;
-        this.basePos = pos.clone();
-
-        // Light
-        this.light = new THREE.PointLight(0xffff00, 2, 5);
-        this.light.position.copy(pos);
-
-        // Mesh (Visible dot)
-        const geo = new THREE.SphereGeometry(0.05, 8, 8);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffffaa });
-        this.mesh = new THREE.Mesh(geo, mat);
-        this.mesh.position.copy(pos);
-
-        scene.add(this.light);
-        scene.add(this.mesh);
-
-        // Random motion offsets
-        this.offsets = new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10);
     }
 
     update(dt, time) {
         this.age += dt;
-        if (this.age > this.maxAge) {
-            this.alive = false;
-            this.dispose();
-            return;
-        }
+        if (this.age > this.maxAge) this.respawn();
 
-        // Float around
-        this.light.position.x = this.basePos.x + Math.sin(time + this.offsets.x) * 1.5;
-        this.light.position.y = this.basePos.y + Math.sin(time * 1.3 + this.offsets.y) * 1.5;
-        this.light.position.z = this.basePos.z + Math.cos(time * 0.8 + this.offsets.z) * 1.5;
-        this.mesh.position.copy(this.light.position);
+        // Drift around the base point
+        this.mesh.position.set(
+            this.basePos.x + Math.sin(time * 0.6 + this.offsets.x) * 1.5,
+            this.basePos.y + Math.sin(time * 0.8 + this.offsets.y) * 0.5,
+            this.basePos.z + Math.cos(time * 0.5 + this.offsets.z) * 1.5
+        );
 
-        // Flicker
-        this.light.intensity = 1.0 + Math.sin(time * 10) * 0.5;
-    }
-
-    dispose() {
-        this.scene.remove(this.light);
-        this.scene.remove(this.mesh);
+        // Fade in and out over each life, flicker, and only glow at night
+        const lifeFade = Math.sin(Math.PI * this.age / this.maxAge);
+        const flicker = 0.6 + 0.4 * Math.sin(time * this.flickerRate + this.offsets.x);
+        const glow = nightFactor * lifeFade * flicker;
+        this.mesh.material.opacity = glow;
+        this.mesh.visible = glow > 0.01;
     }
 }
 
 const fireflies = [];
+for (let i = 0; i < FIREFLY_COUNT; i++) fireflies.push(new Firefly(scene));
 
 // --- MAGIC BURST SYSTEM ---
 class MagicBurst {
@@ -209,7 +223,7 @@ class MagicBurst {
 
     spawn(pos) {
         this.ripplePos.copy(pos);
-        this.rippleTime = clock.getElapsedTime();
+        this.rippleTime = clock.time;
 
         this.light.position.copy(pos);
         this.light.intensity = 10;
@@ -269,7 +283,8 @@ const magicSystem = new MagicBurst(scene);
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-window.addEventListener('pointerdown', (event) => {
+// Click (not drag) on the ground for a burst
+onClick(renderer.domElement, (event) => {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -353,9 +368,17 @@ class Butterfly {
 }
 
 const butterflies = [];
-for (let i = 0; i < CONFIG.butterflyCount; i++) {
-    butterflies.push(new Butterfly(scene));
+
+function setButterflyCount(count) {
+    while (butterflies.length < count) butterflies.push(new Butterfly(scene));
+    while (butterflies.length > count) {
+        const b = butterflies.pop();
+        scene.remove(b.group);
+        b.leftWing.geometry.dispose();
+        b.leftWing.material.dispose();
+    }
 }
+setButterflyCount(CONFIG.butterflyCount);
 
 
 // Utility to scatter objects
@@ -422,7 +445,13 @@ const shrubMat = new THREE.MeshStandardMaterial({
     roughness: 0.9,
     flatShading: true
 });
-scatterObjects(shrubGeo, shrubMat, CONFIG.shrubCount, [0.8, 1.5]);
+let shrubMesh = scatterObjects(shrubGeo, shrubMat, CONFIG.shrubCount, [0.8, 1.5]);
+
+function setShrubCount(count) {
+    scene.remove(shrubMesh);
+    shrubMesh.dispose();
+    shrubMesh = scatterObjects(shrubGeo, shrubMat, count, [0.8, 1.5]);
+}
 
 // 2. Grass
 // Simple blade geometry
@@ -585,8 +614,10 @@ const tapPhy = pane.addTab({ pages: [{ title: 'World' }, { title: 'Post-Process'
 
 tapPhy.pages[0].addBinding(CONFIG, 'dayDuration', { min: 10, max: 120 });
 tapPhy.pages[0].addBinding(CONFIG, 'windSpeed', { min: 0, max: 5 });
-tapPhy.pages[0].addBinding(CONFIG, 'butterflyCount', { min: 0, max: 100, step: 1 });
-tapPhy.pages[0].addBinding(CONFIG, 'shrubCount', { min: 0, max: 200, step: 1 });
+tapPhy.pages[0].addBinding(CONFIG, 'butterflyCount', { min: 0, max: 100, step: 1 })
+    .on('change', v => setButterflyCount(v.value));
+tapPhy.pages[0].addBinding(CONFIG, 'shrubCount', { min: 0, max: 200, step: 1 })
+    .on('change', v => { if (v.last) setShrubCount(v.value); });
 tapPhy.pages[0].addBinding(CONFIG, 'autoCycle');
 tapPhy.pages[0].addBinding(CONFIG, 'timeOfDay', { min: 0, max: 1, label: 'Time (0-1)' });
 
@@ -599,7 +630,6 @@ tapPhy.pages[1].addBinding(CONFIG, 'bloomThreshold', { min: 0, max: 1 }).on('cha
 function updateEnvironment(time) {
     if (CONFIG.autoCycle) {
         CONFIG.timeOfDay = (time % CONFIG.dayDuration) / CONFIG.dayDuration;
-        pane.refresh();
     }
 
     const angle = (CONFIG.timeOfDay * Math.PI * 2) + (Math.PI / 2);
@@ -614,6 +644,7 @@ function updateEnvironment(time) {
     moonLight.position.y = Math.sin(angle + Math.PI) * radius;
 
     const sunHeight = Math.sin(angle);
+    nightFactor = THREE.MathUtils.clamp(-sunHeight * 4, 0, 1);
 
     // Background & Fog Color
     const cSky = new THREE.Color(0x87CEEB);
@@ -665,20 +696,31 @@ function updateEnvironment(time) {
 
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
+let lastPaneRefresh = 0;
 
-function animate() {
+function animate(now) {
     requestAnimationFrame(animate);
 
-    const delta = clock.getDelta();
-    const time = clock.getElapsedTime();
+    const steps = clock.frame(now);
 
     controls.update();
 
-    updateEnvironment(time);
+    for (let i = 0; i < steps; i++) {
+        updateEnvironment(clock.time);
+        magicSystem.update(clock.step);
+        fireflies.forEach(f => f.update(clock.step, clock.time));
+        butterflies.forEach(b => b.update(clock.step, clock.time));
+    }
 
-    // Update system effects
-    magicSystem.update(delta);
+    // Keep the time-of-day slider moving without rebuilding the pane every frame
+    if (CONFIG.autoCycle && now - lastPaneRefresh > 250) {
+        pane.refresh();
+        lastPaneRefresh = now;
+    }
+
+    const time = clock.time;
 
     // Update Shaders
     if (treeMaterial.userData.shader) {
@@ -693,14 +735,6 @@ function animate() {
         grassMat.userData.shader.uniforms.rippleTime.value = magicSystem.rippleTime;
     }
 
-    fireflies.forEach(f => f.update(delta, time));
-    for (let i = fireflies.length - 1; i >= 0; i--) {
-        if (!fireflies[i].alive) fireflies.splice(i, 1);
-    }
-
-    // Update Butterflies
-    butterflies.forEach(b => b.update(delta, time));
-
     composer.render();
 }
 
@@ -711,4 +745,4 @@ window.addEventListener('resize', () => {
     composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-animate();
+requestAnimationFrame(animate);

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Configuration
 const CONFIG = {
@@ -161,7 +163,7 @@ class Boid {
 
         // ===== ANAL FIN (Bottom fin) =====
         this.analPivot = new THREE.Group();
-        this.analPivot.position.set(0, -0.12 * this.sizeScale, 0.15 * this.sizeScale);
+        this.analPivot.position.set(0, -0.12 * this.sizeScale, -0.12 * this.sizeScale);
 
         const analShape = this.createAnalFinGeometry();
         const analMat = new THREE.MeshStandardMaterial({
@@ -190,9 +192,9 @@ class Boid {
 
         // Left pectoral fin
         this.leftPectoralPivot = new THREE.Group();
-        this.leftPectoralPivot.position.set(-0.12 * this.sizeScale, -0.02 * this.sizeScale, -0.15 * this.sizeScale);
+        this.leftPectoralPivot.position.set(-0.12 * this.sizeScale, -0.02 * this.sizeScale, 0.08 * this.sizeScale);
         this.leftPectoral = new THREE.Mesh(pectoralShape, pectoralMat);
-        this.leftPectoral.scale.setScalar(this.sizeScale);
+        this.leftPectoral.scale.set(-this.sizeScale, this.sizeScale, this.sizeScale); // mirror of the right fin
         this.leftPectoral.rotation.z = -Math.PI / 6;
         this.leftPectoral.rotation.y = -Math.PI / 3;
         this.leftPectoralPivot.add(this.leftPectoral);
@@ -200,7 +202,7 @@ class Boid {
 
         // Right pectoral fin
         this.rightPectoralPivot = new THREE.Group();
-        this.rightPectoralPivot.position.set(0.12 * this.sizeScale, -0.02 * this.sizeScale, -0.15 * this.sizeScale);
+        this.rightPectoralPivot.position.set(0.12 * this.sizeScale, -0.02 * this.sizeScale, 0.08 * this.sizeScale);
         this.rightPectoral = new THREE.Mesh(pectoralShape.clone(), pectoralMat);
         this.rightPectoral.scale.setScalar(this.sizeScale);
         this.rightPectoral.rotation.z = Math.PI / 6;
@@ -223,7 +225,7 @@ class Boid {
         this.leftVentral = new THREE.Mesh(ventralShape, ventralMat);
         this.leftVentral.position.set(-0.06 * this.sizeScale, -0.12 * this.sizeScale, -0.05 * this.sizeScale);
         this.leftVentral.rotation.z = -Math.PI / 4;
-        this.leftVentral.scale.setScalar(this.sizeScale * 0.6);
+        this.leftVentral.scale.set(-this.sizeScale * 0.6, this.sizeScale * 0.6, this.sizeScale * 0.6); // mirror of the right fin
         this.group.add(this.leftVentral);
 
         // Right ventral
@@ -336,7 +338,7 @@ class Boid {
             side: THREE.DoubleSide
         });
         const mouth = new THREE.Mesh(mouthGeo, mouthMat);
-        mouth.position.set(0, -0.02 * this.sizeScale, -0.42 * this.sizeScale);
+        mouth.position.set(0, -0.02 * this.sizeScale, 0.36 * this.sizeScale);
         mouth.rotation.x = Math.PI / 2;
         mouth.rotation.z = Math.PI;
         mouth.scale.set(0.8 * this.sizeScale, 0.4 * this.sizeScale, 0.6 * this.sizeScale);
@@ -634,6 +636,7 @@ class Boid {
             let closestFood = null;
             let minDist = 999;
             for (let f of foods) {
+                if (!f.alive) continue;
                 const d = this.position.distanceTo(f.mesh.position);
                 if (d < 10 && d < minDist) { minDist = d; closestFood = f; }
             }
@@ -646,7 +649,6 @@ class Boid {
 
                 if (minDist < 0.5) {
                     closestFood.alive = false;
-                    closestFood.mesh.position.y = -999;
                 }
             }
         }
@@ -809,12 +811,13 @@ class FishFood {
         scene.add(this.mesh);
     }
 
-    update() {
+    update(time) {
+        if (!this.alive) return;
+
         // Sink slowly
         this.mesh.position.y -= 0.03;
 
         // Flutter effect
-        const time = performance.now() / 1000;
         this.mesh.rotation.x += Math.sin(time * this.flutterSpeed + this.flutterOffset) * 0.05;
         this.mesh.rotation.z += Math.cos(time * this.flutterSpeed * 0.8 + this.flutterOffset) * 0.05;
         this.mesh.position.x += Math.sin(time * 2 + this.flutterOffset) * 0.005; // Drift X
@@ -822,8 +825,13 @@ class FishFood {
 
         if (this.mesh.position.y < -CONFIG.boundaryRadius) {
             this.alive = false;
-            this.scene.remove(this.mesh);
         }
+    }
+
+    dispose() {
+        this.scene.remove(this.mesh);
+        this.mesh.geometry.dispose();
+        this.mesh.material.dispose();
     }
 }
 const foods = [];
@@ -927,24 +935,26 @@ function createScareRipple(position) {
     ripple.lookAt(camera.position);
     scene.add(ripple);
 
-    // Animate ripple
-    const startTime = performance.now();
-    function animateRipple() {
-        const elapsed = (performance.now() - startTime) / 1000;
-        if (elapsed > 0.5) {
-            scene.remove(ripple);
-            rippleGeo.dispose();
-            rippleMat.dispose();
-            return;
+    ripples.push({ mesh: ripple, age: 0 });
+}
+
+// Expanding rings from glass taps, advanced with the simulation
+const ripples = [];
+
+function updateRipples(dt) {
+    for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+        r.age += dt;
+        if (r.age > 0.5) {
+            scene.remove(r.mesh);
+            r.mesh.geometry.dispose();
+            r.mesh.material.dispose();
+            ripples.splice(i, 1);
+            continue;
         }
-
-        const scale = 1 + elapsed * 20;
-        ripple.scale.set(scale, scale, scale);
-        rippleMat.opacity = 0.6 * (1 - elapsed * 2);
-
-        requestAnimationFrame(animateRipple);
+        r.mesh.scale.setScalar(1 + r.age * 20);
+        r.mesh.material.opacity = 0.6 * (1 - r.age * 2);
     }
-    animateRipple();
 }
 
 // TANK (Glass Box)
@@ -1000,16 +1010,13 @@ for (const source of bubbleSources) {
 }
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
 
-function animate() {
-    requestAnimationFrame(animate);
-
-    const time = clock.getElapsedTime();
-
+function step(dt, time) {
     // Update scare timer
     if (scareTimer > 0) {
-        scareTimer -= 0.016; // ~60fps
+        scareTimer -= dt;
     }
 
     // Update fish
@@ -1019,9 +1026,9 @@ function animate() {
 
     // Update Food
     for (let i = foods.length - 1; i >= 0; i--) {
-        foods[i].update();
+        foods[i].update(time);
         if (!foods[i].alive) {
-            scene.remove(foods[i].mesh);
+            foods[i].dispose();
             foods.splice(i, 1);
         }
     }
@@ -1031,11 +1038,22 @@ function animate() {
         bubble.update(time);
     }
 
-    controls.update();
+    updateRipples(dt);
+}
+
+function animate(now) {
+    requestAnimationFrame(animate);
+
+    const steps = clock.frame(now);
+    for (let i = 0; i < steps; i++) step(clock.step, clock.time);
+
+    // Auto-rotate by real time (not per call, which tied it to refresh rate),
+    // and hold still while paused
+    controls.update(clock.paused ? 0 : clock.realDelta);
     renderer.render(scene, camera);
 }
 
-animate();
+requestAnimationFrame(animate);
 
 // Resizing
 window.addEventListener('resize', () => {
@@ -1074,6 +1092,7 @@ instructions.innerHTML = `
     <strong>🐠 Aquarium Controls</strong><br>
     Double-Click: Drop food<br>
     Press F: Drop food at center<br>
-    Right Click: Tap the glass (scare fish!)
+    Right Click: Tap the glass (scare fish!)<br>
+    Space: Pause
 `;
 document.body.appendChild(instructions);

@@ -1,3 +1,9 @@
+// Decomposition: organic size eaten per tick, and energy gained per unit eaten
+const BACTERIA_BITE = 0.01;
+const BACTERIA_YIELD = 150;
+// Bacteria this close to the root share its sugar exudate
+const ROOT_EXUDATE_RANGE = 35;
+
 class Bacteria {
     constructor(x, y) {
         this.pos = createVector(x, y);
@@ -11,7 +17,9 @@ class Bacteria {
         this.hue = random(100, 140); // Green hues
     }
 
-    update(particles, rootSystem) {
+    // exudateShare: this tick's share of the sugars the root releases, split
+    // between every bacterium within reach of it (see draw() in script.js).
+    update(particles, rootSystem, exudateShare = 0) {
         // Brownian motion / wandering
         this.acc.add(p5.Vector.random2D().mult(0.15));
 
@@ -37,15 +45,18 @@ class Bacteria {
             steer.limit(this.maxForce);
             this.acc.add(steer);
 
-            // If touching organic matter, "eat" it (gain energy, reduce organic size)
+            // Touching organic matter: decompose it. It is a finite meal and
+            // disappears once it has been eaten down.
             if (nearestDist < 8) {
-                this.energy += 5;
-                // Shrink organic matter slightly
-                nearestOrganic.size = max(2, nearestOrganic.size - 0.1);
+                const take = min(BACTERIA_BITE, nearestOrganic.size);
+                nearestOrganic.size -= take;
+                this.energy += take * BACTERIA_YIELD;
+                if (nearestOrganic.size < 1) nearestOrganic.consumed = true;
             }
         }
 
         // Slight attraction to root zone (rhizosphere is the action zone)
+        this.nearRoot = false;
         if (rootSystem) {
             // Find nearest point on root
             let minRootDist = Infinity;
@@ -57,6 +68,9 @@ class Bacteria {
                     nearestRootPoint = rp;
                 }
             }
+
+            this.nearRoot = minRootDist < ROOT_EXUDATE_RANGE;
+            if (this.nearRoot) this.energy += exudateShare;
 
             if (nearestRootPoint && minRootDist > 30 && minRootDist < 200) {
                 // Gently attract to root zone
@@ -99,7 +113,7 @@ class Bacteria {
 
     display() {
         // Pulsing glow effect
-        let pulse = sin(frameCount * 0.05 + this.pulsePhase) * 0.3 + 0.7;
+        let pulse = sin(simTicks * 0.05 + this.pulsePhase) * 0.3 + 0.7;
         let baseAlpha = map(this.energy, 0, 100, 80, 220);
 
         push();

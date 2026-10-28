@@ -123,7 +123,11 @@ export class Euglena {
             let nearestFood = null;
             let minDist = 150;
 
-            if (entities) {
+            // Mixotrophs only hunt when they need to; a well-fed cell
+            // waits for the light instead of grazing the drop bare.
+            const hungry = this.energy < this.maxEnergy * 0.7;
+
+            if (entities && hungry) {
                 for (const e of entities) {
                     if (e.type === 'bacteria' || e.type === 'detritus') {
                         const dx = e.x - this.x;

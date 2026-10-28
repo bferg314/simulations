@@ -4,11 +4,13 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { Pane } from 'tweakpane';
+import { FixedClock } from '../../shared/clock.js';
+import { onClick } from '../../shared/input.js';
+import { mountPlayback } from '../../shared/playback.js';
 
 // Config
 const CONFIG = {
     count: 15,
-    speed: 1.0,
     tentacleLength: 15,
     color: '#00ffff',
     bgColor: '#000510'
@@ -150,14 +152,29 @@ class Jellyfish {
             const tentacleMesh = new THREE.Mesh(tubeGeo, tubeMat);
             this.pivot.add(tentacleMesh);
 
-            // Store physics nodes
+            // Store physics nodes. pos is in world space, so it has to start at
+            // the jelly's position rather than at the local offset; otherwise every
+            // tentacle begins stretched from its bell to the scene origin.
             const nodes = points.map(p => ({
-                pos: p.clone(),     // Current pos (global space logic)
-                restPos: p.clone()  // Local offset from bell
+                pos: p.clone().add(this.pivot.position), // Current pos (world space)
+                restPos: p.clone()                        // Local offset from bell
             }));
 
             this.tentacles.push({ mesh: tentacleMesh, nodes: nodes, geo: tubeGeo });
         }
+    }
+
+    setColor(color) {
+        this.bell.material.uniforms.color.value.set(color);
+        this.tentacles.forEach(t => t.mesh.material.color.set(color));
+    }
+
+    dispose() {
+        this.scene.remove(this.pivot);
+        this.pivot.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+        });
     }
 
     update(time, dt) {
@@ -204,17 +221,15 @@ class Jellyfish {
                 } else {
                     // Follow previous node
                     const parent = t.nodes[i - 1].pos;
-                    const target = node.pos.clone();
 
                     // Simple spring/drag
                     const dist = 0.3; // Segment length
                     const vec = new THREE.Vector3().subVectors(parent, node.pos);
                     const len = vec.length();
 
-                    // Drag towards parent
+                    // Segments can't stretch: pull the node back to segment length
                     if (len > dist) {
-                        const correction = vec.normalize().multiplyScalar(len - dist);
-                        node.pos.add(correction.multiplyScalar(0.1)); // Stiffness
+                        node.pos.addScaledVector(vec.normalize(), len - dist);
                     }
 
                     // Gravity / Buoyancy (drift down)
@@ -240,11 +255,18 @@ class Jellyfish {
                 // Convert back to local space relative to pivot to update mesh geometry?
                 // Or just detach meshes from pivot and keep them in world space.
             });
+        });
+    }
 
-            // To render: We need to convert the calculated WORLD positions of nodes 
-            // back into the LOCAL space of the tentacle mesh (which is a child of pivot).
-            const inverseMatrix = new THREE.Matrix4().copy(this.pivot.matrixWorld).invert();
+    // Rebuild tentacle meshes from the simulated nodes. Once per rendered frame,
+    // not per simulation step: this is the most expensive work in the scene.
+    updateTentacleMeshes() {
+        // Convert the WORLD positions of nodes back into the LOCAL space of the
+        // tentacle mesh (which is a child of pivot).
+        this.pivot.updateMatrixWorld();
+        const inverseMatrix = new THREE.Matrix4().copy(this.pivot.matrixWorld).invert();
 
+        this.tentacles.forEach((t) => {
             const localPoints = t.nodes.map(n => n.pos.clone().applyMatrix4(inverseMatrix));
 
             // Update Curve
@@ -258,18 +280,25 @@ class Jellyfish {
 
 // Spawn Jellyfish
 const jellies = [];
-for (let i = 0; i < CONFIG.count; i++) {
-    const x = (Math.random() - 0.5) * 20;
-    const y = (Math.random() - 0.5) * 10;
-    const z = (Math.random() - 0.5) * 10;
-    jellies.push(new Jellyfish(scene, x, y, z));
+
+function spawnJellies() {
+    jellies.forEach(j => j.dispose());
+    jellies.length = 0;
+    for (let i = 0; i < CONFIG.count; i++) {
+        const x = (Math.random() - 0.5) * 20;
+        const y = (Math.random() - 0.5) * 10;
+        const z = (Math.random() - 0.5) * 10;
+        jellies.push(new Jellyfish(scene, x, y, z));
+    }
 }
+spawnJellies();
 
 // Interaction
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-window.addEventListener('pointerdown', (e) => {
+// Click (not drag) sends a sonar pulse that pushes nearby jellies away
+onClick(renderer.domElement, (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
@@ -309,29 +338,36 @@ const snow = new THREE.Points(snowGeo, snowMat);
 scene.add(snow);
 
 // Animation Loop
-const clock = new THREE.Clock();
+const clock = new FixedClock();
+mountPlayback(clock);
 
-function animate() {
+function animate(now) {
     requestAnimationFrame(animate);
 
-    const time = clock.getElapsedTime();
-    const dt = clock.getDelta();
-
-    jellies.forEach(j => j.update(time, dt));
-
-    // Animate Snow
+    const steps = clock.frame(now);
     const positions = snow.geometry.attributes.position.array;
-    for (let i = 1; i < positions.length; i += 3) {
-        positions[i] -= 0.01; // Fall down
-        if (positions[i] < -20) positions[i] = 20; // Reset
-    }
-    snow.geometry.attributes.position.needsUpdate = true;
 
-    controls.update();
+    for (let i = 0; i < steps; i++) {
+        jellies.forEach(j => j.update(clock.time, clock.step));
+
+        // Animate Snow
+        for (let k = 1; k < positions.length; k += 3) {
+            positions[k] -= 0.01; // Fall down
+            if (positions[k] < -20) positions[k] = 20; // Reset
+        }
+    }
+    if (steps > 0) {
+        jellies.forEach(j => j.updateTentacleMeshes());
+        snow.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Auto-rotate by real time (not per call, which tied it to refresh rate),
+    // and hold still while paused
+    controls.update(clock.paused ? 0 : clock.realDelta);
     composer.render();
 }
 
-animate();
+requestAnimationFrame(animate);
 
 // Resizing
 window.addEventListener('resize', () => {
@@ -343,10 +379,13 @@ window.addEventListener('resize', () => {
 
 // Tweakpane
 const pane = new Pane();
-pane.addBinding(CONFIG, 'count', { min: 1, max: 30, step: 1 }); // Requires restart logic, skip for now
+pane.addBinding(CONFIG, 'count', { min: 1, max: 30, step: 1 }).on('change', (v) => {
+    if (v.last) spawnJellies();
+});
+pane.addBinding(CONFIG, 'tentacleLength', { min: 4, max: 30, step: 1 }).on('change', (v) => {
+    if (v.last) spawnJellies();
+});
 pane.addBinding(CONFIG, 'color').on('change', (v) => {
-    jellies.forEach(j => {
-        j.bell.material.uniforms.color.value.set(v.value);
-    });
+    jellies.forEach(j => j.setColor(v.value));
 });
 
