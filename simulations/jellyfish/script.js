@@ -150,14 +150,29 @@ class Jellyfish {
             const tentacleMesh = new THREE.Mesh(tubeGeo, tubeMat);
             this.pivot.add(tentacleMesh);
 
-            // Store physics nodes
+            // Store physics nodes. pos is in world space, so it has to start at
+            // the jelly's position rather than at the local offset; otherwise every
+            // tentacle begins stretched from its bell to the scene origin.
             const nodes = points.map(p => ({
-                pos: p.clone(),     // Current pos (global space logic)
-                restPos: p.clone()  // Local offset from bell
+                pos: p.clone().add(this.pivot.position), // Current pos (world space)
+                restPos: p.clone()                        // Local offset from bell
             }));
 
             this.tentacles.push({ mesh: tentacleMesh, nodes: nodes, geo: tubeGeo });
         }
+    }
+
+    setColor(color) {
+        this.bell.material.uniforms.color.value.set(color);
+        this.tentacles.forEach(t => t.mesh.material.color.set(color));
+    }
+
+    dispose() {
+        this.scene.remove(this.pivot);
+        this.pivot.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+        });
     }
 
     update(time, dt) {
@@ -204,17 +219,15 @@ class Jellyfish {
                 } else {
                     // Follow previous node
                     const parent = t.nodes[i - 1].pos;
-                    const target = node.pos.clone();
 
                     // Simple spring/drag
                     const dist = 0.3; // Segment length
                     const vec = new THREE.Vector3().subVectors(parent, node.pos);
                     const len = vec.length();
 
-                    // Drag towards parent
+                    // Segments can't stretch: pull the node back to segment length
                     if (len > dist) {
-                        const correction = vec.normalize().multiplyScalar(len - dist);
-                        node.pos.add(correction.multiplyScalar(0.1)); // Stiffness
+                        node.pos.addScaledVector(vec.normalize(), len - dist);
                     }
 
                     // Gravity / Buoyancy (drift down)
@@ -258,12 +271,18 @@ class Jellyfish {
 
 // Spawn Jellyfish
 const jellies = [];
-for (let i = 0; i < CONFIG.count; i++) {
-    const x = (Math.random() - 0.5) * 20;
-    const y = (Math.random() - 0.5) * 10;
-    const z = (Math.random() - 0.5) * 10;
-    jellies.push(new Jellyfish(scene, x, y, z));
+
+function spawnJellies() {
+    jellies.forEach(j => j.dispose());
+    jellies.length = 0;
+    for (let i = 0; i < CONFIG.count; i++) {
+        const x = (Math.random() - 0.5) * 20;
+        const y = (Math.random() - 0.5) * 10;
+        const z = (Math.random() - 0.5) * 10;
+        jellies.push(new Jellyfish(scene, x, y, z));
+    }
 }
+spawnJellies();
 
 // Interaction
 const raycaster = new THREE.Raycaster();
@@ -310,12 +329,16 @@ scene.add(snow);
 
 // Animation Loop
 const clock = new THREE.Clock();
+let time = 0;
 
 function animate() {
     requestAnimationFrame(animate);
 
-    const time = clock.getElapsedTime();
-    const dt = clock.getDelta();
+    // getElapsedTime() calls getDelta() internally, so reading both in one frame
+    // leaves dt at zero. Read the delta once and keep our own clock, which also
+    // lets the speed setting scale the whole animation.
+    const dt = Math.min(clock.getDelta(), 0.1) * CONFIG.speed;
+    time += dt;
 
     jellies.forEach(j => j.update(time, dt));
 
@@ -343,10 +366,14 @@ window.addEventListener('resize', () => {
 
 // Tweakpane
 const pane = new Pane();
-pane.addBinding(CONFIG, 'count', { min: 1, max: 30, step: 1 }); // Requires restart logic, skip for now
+pane.addBinding(CONFIG, 'count', { min: 1, max: 30, step: 1 }).on('change', (v) => {
+    if (v.last) spawnJellies();
+});
+pane.addBinding(CONFIG, 'speed', { min: 0.1, max: 3 });
+pane.addBinding(CONFIG, 'tentacleLength', { min: 4, max: 30, step: 1 }).on('change', (v) => {
+    if (v.last) spawnJellies();
+});
 pane.addBinding(CONFIG, 'color').on('change', (v) => {
-    jellies.forEach(j => {
-        j.bell.material.uniforms.color.value.set(v.value);
-    });
+    jellies.forEach(j => j.setColor(v.value));
 });
 
