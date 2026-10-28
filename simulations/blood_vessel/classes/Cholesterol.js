@@ -80,8 +80,9 @@ export class Cholesterol {
         if (this.y < vesselCenter - vesselRadius + wallMargin ||
             this.y > vesselCenter + vesselRadius - wallMargin) {
 
-            // Chance to stick
-            if (Math.random() < 0.02) {
+            // Chance to stick. Small enough that plaque builds over minutes
+            // rather than coating the walls in the first few seconds.
+            if (Math.random() < 0.00005 * delta) {
                 this.isStuck = true;
                 // Snap to wall
                 if (this.y < vesselCenter) {

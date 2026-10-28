@@ -24,6 +24,7 @@ const state = {
     baseFlowRate: 1.0,
     heartBeatPhase: 0,
     vesselRadius: 0,
+    vesselCenter: 0,
     activeTool: 'observe',
     isCutting: false,
     ecgData: [],
@@ -42,6 +43,13 @@ const state = {
     plaqueLevel: 0
 };
 
+window.addEventListener('resize', () => {
+    // Pixi resizes the canvas on the next frame; lay out the vessel then too
+    requestAnimationFrame(() => {
+        if (state.app) layoutVessel(window.innerWidth, window.innerHeight);
+    });
+});
+
 async function init() {
     const canvasContainer = document.getElementById('canvas-container');
 
@@ -59,10 +67,13 @@ async function init() {
     state.container = new PIXI.Container();
     state.app.stage.addChild(state.container);
 
-    state.vesselRadius = state.app.screen.height / 2;
-
-    // Background (Shader)
+    // Background (Shader), vessel walls, and the layer wounds are drawn on
     createBackground();
+    state.walls = new PIXI.Graphics();
+    state.container.addChild(state.walls);
+    state.woundLayer = new PIXI.Container();
+    state.container.addChild(state.woundLayer);
+    layoutVessel(state.app.screen.width, state.app.screen.height);
 
     // Initialize ECG trace
     initECG();
@@ -85,17 +96,93 @@ function createBackground() {
     const fragSrc = document.getElementById('plasma-frag').textContent;
     const filter = new PIXI.Filter(null, fragSrc, {
         time: 0.0,
-        resolution: [state.app.screen.width, state.app.screen.height]
+        uResolution: [state.app.screen.width, state.app.screen.height]
     });
 
     const bg = new PIXI.Graphics();
-    bg.beginFill(0xffffff);
-    bg.drawRect(0, 0, state.app.screen.width, state.app.screen.height);
-    bg.endFill();
     bg.filters = [filter];
 
     state.container.addChild(bg);
+    state.background = bg;
     state.plasmaFilter = filter;
+}
+
+// Size everything that depends on the window: the plasma, the vessel walls
+// and the lumen between them. On a resize, cells and wounds keep their place
+// relative to the walls.
+function layoutVessel(width, height) {
+    const oldCenter = state.vesselCenter;
+    const oldRadius = state.vesselRadius;
+    const wall = Math.max(36, height * 0.1);
+    state.vesselCenter = height / 2;
+    state.vesselRadius = height / 2 - wall;
+
+    state.background.clear();
+    state.background.beginFill(0xffffff);
+    state.background.drawRect(0, 0, width, height);
+    state.background.endFill();
+    state.plasmaFilter.uniforms.uResolution = [width, height];
+
+    drawWalls(width, height);
+
+    if (state.ecgGraphics) {
+        state.ecgGraphics.x = width - 230;
+        state.ecgGraphics.y = height - 80;
+    }
+
+    if (oldRadius > 0) {
+        const scale = state.vesselRadius / oldRadius;
+        for (const e of state.entities) {
+            e.y = state.vesselCenter + (e.y - oldCenter) * scale;
+        }
+        for (const zone of state.damageZones) {
+            const newY = state.vesselCenter + Math.sign(zone.y - oldCenter) * state.vesselRadius;
+            zone.graphics.y += newY - zone.y;
+            if (zone.scarGraphics) zone.scarGraphics.y += newY - zone.y;
+            zone.y = newY;
+        }
+    }
+}
+
+function drawWalls(width, height) {
+    const top = state.vesselCenter - state.vesselRadius;
+    const bottom = state.vesselCenter + state.vesselRadius;
+    const g = state.walls;
+    g.clear();
+
+    // Vessel wall tissue
+    g.beginFill(0x8e3b46);
+    g.drawRect(0, 0, width, top);
+    g.drawRect(0, bottom, width, height - bottom);
+    g.endFill();
+
+    // Smooth muscle striations
+    g.lineStyle(1, 0x6f2a34, 0.6);
+    for (let i = 1; i < 4; i++) {
+        const t = (top * i) / 4;
+        g.moveTo(0, t);
+        g.lineTo(width, t);
+        g.moveTo(0, height - t);
+        g.lineTo(width, height - t);
+    }
+
+    // Endothelium lining the lumen
+    g.lineStyle(4, 0xe8a3a8, 0.9);
+    g.moveTo(0, top);
+    g.lineTo(width, top);
+    g.moveTo(0, bottom);
+    g.lineTo(width, bottom);
+}
+
+// Child index just above the wound layer: clots and plaque show over the
+// wound they form on, and under the red cells flowing past
+function aboveWounds() {
+    return state.container.getChildIndex(state.woundLayer) + 1;
+}
+
+// A random height inside the lumen, clear of the walls
+function lumenY(fill = 0.9) {
+    return state.vesselCenter + (Math.random() - 0.5) * 2 * state.vesselRadius * fill;
 }
 
 function initECG() {
@@ -167,42 +254,42 @@ function updateECG(delta) {
     state.ecgGraphics.lineStyle(0);
 }
 
-// Fever visual overlay
+// Fever visual overlay: a red vignette, clear in the middle and strongest at
+// the edges, that closes in and pulses as the temperature climbs
 function updateFeverOverlay() {
     if (!state.feverOverlay) {
-        state.feverOverlay = new PIXI.Graphics();
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.2, size / 2, size / 2, size * 0.71);
+        gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 1)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        state.feverOverlay = new PIXI.Sprite(PIXI.Texture.from(canvas));
         state.app.stage.addChild(state.feverOverlay);
     }
 
-    state.feverOverlay.clear();
+    const overlay = state.feverOverlay;
+    overlay.visible = state.feverIntensity > 0.05;
+    if (!overlay.visible) return;
 
-    if (state.feverIntensity > 0.05) {
-        // Red vignette that intensifies with fever
-        const alpha = state.feverIntensity * 0.3;
+    // Stretched past the screen edges so the clear centre shrinks with fever
+    const spread = 1.5 - state.feverIntensity * 0.5;
+    const w = state.app.screen.width * spread;
+    const h = state.app.screen.height * spread;
+    overlay.width = w;
+    overlay.height = h;
+    overlay.x = (state.app.screen.width - w) / 2;
+    overlay.y = (state.app.screen.height - h) / 2;
 
-        // Pulsing effect
-        const pulse = 1 + Math.sin(state.heartBeatPhase * 2) * 0.2;
-
-        // Draw red overlay with gradient
-        state.feverOverlay.beginFill(0xFF0000, alpha * pulse);
-        state.feverOverlay.drawRect(0, 0, state.app.screen.width, state.app.screen.height);
-        state.feverOverlay.endFill();
-
-        // Clear center to create vignette
-        // Using a semi-transparent center
-        const centerX = state.app.screen.width / 2;
-        const centerY = state.app.screen.height / 2;
-        const radius = Math.min(centerX, centerY) * (1.5 - state.feverIntensity * 0.5);
-
-        // Draw lighter center
-        state.feverOverlay.beginFill(0xFF0000, 0);
-        state.feverOverlay.drawCircle(centerX, centerY, radius);
-        state.feverOverlay.endFill();
-    }
+    const pulse = 1 + Math.sin(state.heartBeatPhase * 2) * 0.2;
+    overlay.alpha = Math.min(1, state.feverIntensity * 0.6 * pulse);
 }
 
 function spawnRBC() {
-    const y = Math.random() * state.app.screen.height;
+    const y = lumenY();
     const x = Math.random() * state.app.screen.width;
     const rbc = new RBC(x, y);
     state.entities.push(rbc);
@@ -210,7 +297,7 @@ function spawnRBC() {
 }
 
 function spawnWBC() {
-    const y = Math.random() * state.app.screen.height;
+    const y = lumenY();
     const x = Math.random() * state.app.screen.width;
     const wbc = new WBC(x, y);
     state.entities.push(wbc);
@@ -218,11 +305,11 @@ function spawnWBC() {
 }
 
 function spawnPlatelet() {
-    const y = Math.random() * state.app.screen.height;
+    const y = lumenY();
     const x = Math.random() * state.app.screen.width;
     const p = new Platelet(x, y);
     state.entities.push(p);
-    state.container.addChildAt(p.sprite, 1);
+    state.container.addChildAt(p.sprite, aboveWounds());
 }
 
 function spawnPathogen(x, y) {
@@ -250,13 +337,11 @@ function spawnPathogen(x, y) {
 }
 
 function spawnCholesterol() {
-    const center = state.app.screen.height / 2;
-    const radius = state.vesselRadius || state.app.screen.height / 2;
-    const y = center + (Math.random() - 0.5) * 2 * radius * 0.7;
+    const y = lumenY(0.7);
     const x = Math.random() * state.app.screen.width;
     const chol = new Cholesterol(x, y);
     state.entities.push(chol);
-    state.container.addChildAt(chol.sprite, 1);
+    state.container.addChildAt(chol.sprite, aboveWounds());
 }
 
 function gameLoop(delta) {
@@ -321,7 +406,9 @@ function gameLoop(delta) {
     }
 
     const bounds = { width: state.app.screen.width, height: state.app.screen.height };
-    const center = state.app.screen.height / 2;
+    const center = state.vesselCenter;
+    const lumenTop = center - state.vesselRadius + 6;
+    const lumenBottom = center + state.vesselRadius - 6;
 
     // Clean up dead pathogens
     state.entities = state.entities.filter(e => {
@@ -347,6 +434,11 @@ function gameLoop(delta) {
             entityFlow *= immuneBoost;
         }
         e.update(delta, bounds, entityFlow, center, state.vesselRadius, state.damageZones, state.entities);
+        // Collisions can shove a cell sideways; it can't leave the lumen
+        if (e.y < lumenTop || e.y > lumenBottom) {
+            e.y = Math.min(lumenBottom, Math.max(lumenTop, e.y));
+            e.sprite.y = e.y;
+        }
     });
 
 
@@ -423,9 +515,7 @@ function gameLoop(delta) {
             bpLabel.style.color = '#ef4444';
             if (dispSys > 190 && Math.random() < 0.05) {
                 const x = Math.random() * state.app.screen.width;
-                const r = state.vesselRadius;
-                const y = Math.random() > 0.5 ? center - r + 30 : center + r - 30;
-                createDamage(x, y);
+                createDamage(x, nearestWallY(Math.random() > 0.5 ? 0 : state.app.screen.height));
                 state.container.x = (Math.random() - 0.5) * 10;
                 setTimeout(() => state.container.x = 0, 100);
             }
@@ -444,6 +534,13 @@ function gameLoop(delta) {
     frameCount++;
 }
 let frameCount = 0;
+
+// The lumen edge of whichever wall is closer to y
+function nearestWallY(y) {
+    return y < state.vesselCenter
+        ? state.vesselCenter - state.vesselRadius
+        : state.vesselCenter + state.vesselRadius;
+}
 
 function createDamage(x, y) {
     // Vary the wound appearance
@@ -513,10 +610,7 @@ function createDamage(x, y) {
     woundGraphics.drawCircle(x, y, size * 1.5);
     woundGraphics.endFill();
 
-    state.container.addChild(woundGraphics);
-    if (state.container.children.length > 1) {
-        state.container.setChildIndex(woundGraphics, 1);
-    }
+    state.woundLayer.addChild(woundGraphics);
 
     // Create damage zone with healing properties
     state.damageZones.push({
@@ -564,7 +658,7 @@ function updateDamageZones(delta) {
                 scar.beginFill(0xDDA0A0, 0.3);
                 scar.drawEllipse(zone.x, zone.y, zone.radius * 0.3, zone.radius * 0.15);
                 scar.endFill();
-                state.container.addChild(scar);
+                state.woundLayer.addChild(scar);
                 zone.scarGraphics = scar;
             }
         }
@@ -573,7 +667,7 @@ function updateDamageZones(delta) {
         if (zone.healProgress >= 1) {
             // Remove wound graphics
             if (zone.graphics) {
-                state.container.removeChild(zone.graphics);
+                zone.graphics.destroy();
             }
             // Fade out scar
             if (zone.scarGraphics) {
@@ -583,7 +677,7 @@ function updateDamageZones(delta) {
                     zone.scarGraphics.alpha = scarAlpha;
                     if (scarAlpha <= 0) {
                         clearInterval(fadeInterval);
-                        state.container.removeChild(zone.scarGraphics);
+                        zone.scarGraphics.destroy();
                     }
                 }, 50);
             }
@@ -680,7 +774,8 @@ function setupInteractions() {
 
     state.app.stage.on('pointerdown', (e) => {
         if (state.activeTool === 'cut') {
-            createDamage(e.global.x, e.global.y);
+            // Wounds are in the vessel wall: cut the wall nearest the click
+            createDamage(e.global.x, nearestWallY(e.global.y));
         } else if (state.activeTool === 'inject') {
             const count = 3 + Math.floor(Math.random() * 3);
             for (let i = 0; i < count; i++) {

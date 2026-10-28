@@ -99,10 +99,12 @@
     <script id="plasma-frag" type="x-shader/x-fragment">
         precision mediump float;
         uniform float time;
-        uniform vec2 resolution;
+        // Not named "resolution": Pixi's filter system defines a global uniform
+        // of that name, which overrides this one and turned the plasma black.
+        uniform vec2 uResolution;
         
         void main() {
-            vec2 uv = gl_FragCoord.xy / resolution.xy;
+            vec2 uv = gl_FragCoord.xy / uResolution.xy;
             
             // Flowing amber noise
             float flow = time * 0.2;
