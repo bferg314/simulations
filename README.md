@@ -40,6 +40,13 @@ A founding queen sinks a shaft, excavates a royal chamber, and raises a colony b
 - **Weather & threats**: Rain floods tunnels and collapses them, and an antlion waits on the surface
 - **Tech**: Canvas ImageData over a Three.js plane, cellular automata
 
+### 🎐 Phase Chimes
+A pendulum wave that plays itself. Pendulum *n* makes exactly *k + n* swings per cycle, so the row ripples, splits into two and three rows, looks random, and lines up again at the end of the cycle. Each bob strikes a chime.
+- **Sound**: Struck-bar chimes scheduled ahead on the Web Audio clock, in five scales (pentatonic, just major, slendro, Dorian)
+- **Physics**: Exact closed-form motion, or a "real pendulum" mode (RK4, full sin θ, air drag) that shows why real rows never quite realign
+- **Views**: Three-quarter, top-down and end-on cameras; keys `R` release, `M` mute, `1`–`3` cameras
+- **Tech**: Three.js with bloom, Web Audio, `node --test` for the maths ([details](simulations/phase_chimes/README.md))
+
 ## 🔬 Biological Simulations (New!)
 Interactive 2D simulations exploring the microscopic world.
  
