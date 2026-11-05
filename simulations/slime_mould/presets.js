@@ -55,7 +55,7 @@ export function applyPreset(model, name, { count = null, density = DEFAULT_DENSI
     } else if (name === 'tokyo') {
         const map = tokyoMap(W, H);
         model.setWalls(map.wall);
-        model.setAreaLight(map.light);
+        for (const [x, y, r] of map.lights) model.lights.push({ x, y, r });
         const foodR = Math.max(2, map.scale * 0.012);
         for (const c of TOKYO_CITIES) {
             const [x, y] = map.project(c[1], c[2]);
@@ -158,7 +158,6 @@ export function tokyoMap(W, H) {
     const x0 = ox, x1 = ox + mapW * scale, y0 = oy, y1 = oy + mapH * scale;
 
     const wall = new Uint8Array(W * H);
-    const light = new Uint8Array(W * H);
     const lights = KANTO_LIGHTS.map(([lon, lat, r]) => { const [x, y] = project(lon, lat); return [x, y, r * scale]; });
     for (let y = 0; y < H; y++) {
         const py = y + 0.5;
@@ -174,11 +173,8 @@ export function tokyoMap(W, H) {
             const c = y * W + x;
             let inside = false;
             for (const cx of xs) { if (cx < px) inside = !inside; else break; }
-            if (!inside || px < x0 || px > x1 || py < y0 || py > y1) { wall[c] = 1; continue; }
-            for (const [lx, ly, lr] of lights) {
-                if ((px - lx) ** 2 + (py - ly) ** 2 < lr * lr) { light[c] = 1; break; }
-            }
+            if (!inside || px < x0 || px > x1 || py < y0 || py > y1) wall[c] = 1;
         }
     }
-    return { wall, light, project, scale, poly, bounds: [x0, y0, x1, y1] };
+    return { wall, lights, project, scale, poly, bounds: [x0, y0, x1, y1] };
 }
