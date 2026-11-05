@@ -80,6 +80,15 @@ const simulations = [
         thumb: 'assets/thumbs/blood_vessel.jpg',
         tags: ['biology', 'medical', 'flow'],
         icon: '🩸'
+    },
+    {
+        id: 'snowflake',
+        title: 'Snowflake',
+        description: 'Grow a snow crystal on a hexagonal grid with Reiter\'s cellular model, from plates to ferny dendrites.',
+        path: 'simulations/snowflake/',
+        thumb: 'assets/thumbs/snowflake.jpg',
+        tags: ['weather', 'crystals', 'automata'],
+        icon: '❄️'
     }
 ];
 

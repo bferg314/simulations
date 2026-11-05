@@ -40,6 +40,15 @@ A founding queen sinks a shaft, excavates a royal chamber, and raises a colony b
 - **Weather & threats**: Rain floods tunnels and collapses them, and an antlion waits on the surface
 - **Tech**: Canvas ImageData over a Three.js plane, cellular automata
 
+### ❄️ Snowflake
+A single snow crystal grows on a hexagonal grid under Clifford Reiter's local cellular model (2005).
+- **Three conditions**: background vapour (β), vapour supply (γ) and diffusion (α). They are the model's own numbers, not temperature and humidity.
+- **Presets from the paper's figures**: plate, sectored plate, broad star, stellar dendrite, fern, and a plate that sprouts dendrite arms
+- **Conditions drift**: β and γ wander as the crystal grows, giving mixed forms like a crystal falling through a cloud
+- **Nakaya inset**: where each form grows in real snow, redrawn after Libbrecht, as context only
+- **Save PNG** of the finished crystal
+- **Tech**: CPU cellular automaton on typed arrays, Canvas ImageData with fake relief, `node --test` checks for six-fold symmetry. Details and sources are in [simulations/snowflake/README.md](simulations/snowflake/README.md).
+
 ## 🔬 Biological Simulations (New!)
 Interactive 2D simulations exploring the microscopic world.
  
