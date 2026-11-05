@@ -80,6 +80,15 @@ const simulations = [
         thumb: 'assets/thumbs/blood_vessel.jpg',
         tags: ['biology', 'medical', 'flow'],
         icon: '🩸'
+    },
+    {
+        id: 'phase_chimes',
+        title: 'Phase Chimes',
+        description: 'A pendulum wave that plays itself: fifteen chimes ripple, drift out of step and ring together again once a minute.',
+        path: 'simulations/phase_chimes/',
+        thumb: 'assets/thumbs/phase_chimes.jpg',
+        tags: ['physics', 'sound', 'waves'],
+        icon: '🎐'
     }
 ];
 
