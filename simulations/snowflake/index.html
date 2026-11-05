@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
+    <title>Snowflake | Simulation Hub</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #0b1830 0%, #040912 70%, #020408 100%);
+            background-color: #040912;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #view {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            z-index: 100;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        /* Real-world context: the Nakaya diagram */
+        .nakaya {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            z-index: 90;
+            max-width: min(340px, calc(100vw - 40px));
+            color: rgba(220, 235, 255, 0.85);
+            font-size: 0.75rem;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+
+        .nakaya summary {
+            cursor: pointer;
+            padding: 8px 14px;
+            list-style: none;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .nakaya summary::-webkit-details-marker { display: none; }
+        .nakaya summary::before { content: '▸ '; }
+        .nakaya[open] summary::before { content: '▾ '; }
+
+        .nakaya .body { padding: 0 12px 10px; }
+        .nakaya svg { width: 100%; height: auto; display: block; }
+        .nakaya p { margin: 6px 2px 0; line-height: 1.4; color: rgba(220, 235, 255, 0.65); }
+        .nakaya a { color: rgba(170, 210, 255, 0.9); }
+
+        .nakaya svg text { fill: rgba(220, 235, 255, 0.8); font-family: inherit; }
+        .nakaya svg .form { transition: fill 0.3s; }
+        .nakaya svg .form.on { fill: #ffffff; font-weight: 600; }
+        .nakaya svg .zone.on { fill: rgba(140, 200, 255, 0.18); }
+
+        .status {
+            position: absolute;
+            top: 64px;
+            left: 20px;
+            z-index: 90;
+            color: rgba(220, 235, 255, 0.6);
+            font-size: 0.8rem;
+            line-height: 1.5;
+            pointer-events: none;
+        }
+
+        @media (max-width: 700px) {
+            .status { top: 60px; font-size: 0.7rem; }
+            .nakaya { bottom: 64px; }
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "tweakpane": "../../vendor/tweakpane/tweakpane.min.js"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <a href="../../index.html" class="back-btn">← Back to Hub</a>
+    <canvas id="view"></canvas>
+    <div class="status" id="status"></div>
+
+    <details class="nakaya" id="nakaya">
+        <summary>Real snow: the Nakaya diagram</summary>
+        <div class="body">
+            <!-- Redrawn, simplified, from K. G. Libbrecht's snow crystal
+                 morphology diagram (snowcrystals.com). Positions are read
+                 off that figure by eye. x: 0 to -38 C, y: 0 to 0.3 g/m^3. -->
+            <svg viewBox="0 0 320 205" role="img" aria-label="Snow crystal morphology diagram: crystal form against temperature and supersaturation">
+                <!-- highlight zones, switched on for the current preset's form -->
+                <rect class="zone" data-form="dendrite" x="111" y="20" width="85" height="62" fill="transparent" />
+                <rect class="zone" data-form="sectored" x="111" y="70" width="85" height="30" fill="transparent" />
+                <rect class="zone" data-form="plate" x="111" y="100" width="85" height="70" fill="transparent" />
+
+                <g stroke="rgba(220,235,255,0.55)" stroke-width="1" fill="none">
+                    <path d="M40 20 V170 H310" />
+                    <path d="M40 95 h-3 M40 20 h-3 M40 170 h-3" />
+                </g>
+                <g stroke="rgba(220,235,255,0.35)" stroke-dasharray="3 3">
+                    <path d="M65 20 V170 M111 20 V170 M196 20 V170" />
+                </g>
+                <!-- water saturation -->
+                <path d="M40 170 C44 167 46 163 47 160 C58 146 66 138 75.5 132.5 C90 120 100 112 111 107.5 C125 101 135 99 146.6 99 C165 99 182 103 196.3 109 C220 118 238 124 253.2 130 C275 141 292 150 303 155"
+                    fill="none" stroke="rgba(170,210,255,0.8)" stroke-width="1.3" />
+                <text x="232" y="117" font-size="7" transform="rotate(14 232 117)">water saturation</text>
+
+                <!-- band headings -->
+                <g font-size="8" text-anchor="middle">
+                    <text x="52" y="14">Plates</text>
+                    <text x="88" y="14">Columns</text>
+                    <text x="154" y="14">Plates</text>
+                    <text x="253" y="14">Columns &amp; plates</text>
+                </g>
+
+                <!-- forms -->
+                <g font-size="7" text-anchor="middle">
+                    <text class="form" data-form="dendrite" x="52" y="92">dendrites</text>
+                    <text class="form" data-form="plate" x="52" y="140">plates</text>
+                    <text x="88" y="70">needles</text>
+                    <text x="88" y="118">hollow</text>
+                    <text x="88" y="126">columns</text>
+                    <text x="88" y="160">solid plates</text>
+                    <text class="form" data-form="dendrite" x="154" y="42">stellar dendrites</text>
+                    <text class="form" data-form="dendrite" x="154" y="51">(ferns)</text>
+                    <text class="form" data-form="sectored" x="154" y="82">sectored plates</text>
+                    <text class="form" data-form="plate" x="154" y="122">thin plates</text>
+                    <text class="form" data-form="plate" x="154" y="152">solid plates</text>
+                    <text x="253" y="100">columns</text>
+                    <text class="form" data-form="plate" x="253" y="150">plates</text>
+                </g>
+
+                <!-- axes -->
+                <g font-size="7" text-anchor="middle">
+                    <text x="40" y="180">0</text>
+                    <text x="75.5" y="180">−5</text>
+                    <text x="111" y="180">−10</text>
+                    <text x="146.6" y="180">−15</text>
+                    <text x="182" y="180">−20</text>
+                    <text x="217.6" y="180">−25</text>
+                    <text x="253.2" y="180">−30</text>
+                    <text x="288.7" y="180">−35</text>
+                    <text x="175" y="196" font-size="8">temperature (°C)</text>
+                </g>
+                <g font-size="7" text-anchor="end">
+                    <text x="35" y="172">0</text>
+                    <text x="35" y="97">0.15</text>
+                    <text x="35" y="23">0.3</text>
+                </g>
+                <text x="10" y="95" font-size="7" text-anchor="middle" transform="rotate(-90 10 95)">supersaturation (g/m³)</text>
+            </svg>
+            <p>Where each form grows in real clouds. Redrawn after K. G. Libbrecht's
+                <a href="https://www.snowcrystals.com/morphology/morphology.html" target="_blank" rel="noopener">morphology diagram</a>,
+                from Nakaya's work in the 1930s.</p>
+            <p>This is real-world context only. The model's three numbers are not
+                temperature or humidity, and the sim does not map onto this chart.</p>
+        </div>
+    </details>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
