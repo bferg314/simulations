@@ -80,6 +80,15 @@ const simulations = [
         thumb: 'assets/thumbs/blood_vessel.jpg',
         tags: ['biology', 'medical', 'flow'],
         icon: '🩸'
+    },
+    {
+        id: 'slime_mould',
+        title: 'Slime Mould',
+        description: 'Tens of thousands of Physarum agents lay and follow trails, building transport networks between oat flakes, including a rough Tokyo map after Tero et al. (2010).',
+        path: 'simulations/slime_mould/',
+        thumb: 'assets/thumbs/slime_mould.jpg',
+        tags: ['biology', 'emergent', 'networks', 'agents'],
+        icon: '🟡'
     }
 ];
 

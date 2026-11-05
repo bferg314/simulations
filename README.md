@@ -63,6 +63,14 @@ A high-fidelity hemodynamic simulation inside a blood vessel.
 - **Immune Response**: White Blood Cells (Neutrophils) actively chemotax towards wounds to fight infection. It features clot aging and healing mechanics.
 - **Tech**: PIXI.js, Custom Shaders for plasma.
 
+### 🟡 Slime Mould
+*Physarum polycephalum* foraging, after Jeff Jones's 2010 agent model.
+- **Agents**: Tens of thousands of agents sense a chemical trail ahead, turn toward it, move and deposit, one agent per cell. The trail diffuses and decays.
+- **Networks**: The mould links oat flakes with veins that keep remodelling. Light repels it.
+- **Layouts**: A petri dish, bare agar, and a rough Tokyo map with 36 cities after Tero et al. (2010). The layout is approximate.
+- **Interaction**: Click places an oat flake, shift-click places a light, right-click or long-press removes. There is a tool menu for touch.
+- **Tech**: Typed arrays on the CPU, Canvas ImageData, Tweakpane. Parameter sources are in [its README](simulations/slime_mould/README.md).
+
 ## 🛠️ Technology Stack
 - **Core**: HTML5, Vanilla JavaScript (ES6+)
 - **Styling**: CSS3 (Variables, Grid, Flexbox, Animations)
