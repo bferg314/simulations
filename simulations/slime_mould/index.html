@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🟡</text></svg>">
+    <title>Slime Mould | Simulation Hub</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #trail,
+        #overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        #overlay {
+            pointer-events: none;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            z-index: 100;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .hud {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            max-width: min(360px, calc(100vw - 40px));
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.78rem;
+            line-height: 1.45;
+            z-index: 90;
+            pointer-events: none;
+        }
+
+        .hud strong {
+            color: white;
+            font-weight: 600;
+        }
+
+        .hud .stats {
+            font-variant-numeric: tabular-nums;
+            opacity: 0.8;
+        }
+
+        .hud .note {
+            color: #ffd27a;
+        }
+
+        @media (max-width: 700px) {
+            .hud {
+                bottom: 64px;
+                font-size: 0.72rem;
+            }
+
+            .hud .hint {
+                display: none;
+            }
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "tweakpane": "../../vendor/tweakpane/tweakpane.min.js"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <a href="../../index.html" class="back-btn">← Back to Hub</a>
+    <canvas id="trail"></canvas>
+    <canvas id="overlay"></canvas>
+    <div class="hud">
+        <div><strong>Slime mould</strong> · <span id="hud-preset"></span></div>
+        <div class="hint">Click: oat flake · Shift-click: light · Right-click or long-press: remove</div>
+        <div class="stats" id="hud-stats"></div>
+        <div class="note" id="hud-note"></div>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
