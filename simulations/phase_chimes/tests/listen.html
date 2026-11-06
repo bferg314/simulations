@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Chimes listening check</title>
+    <style>
+        body { background: #0b0e14; color: #d8dde8; font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        td, th { border-bottom: 1px solid #263044; padding: 6px 8px; text-align: left; font-variant-numeric: tabular-nums; }
+        .ok { color: #7ee2a8; } .bad { color: #ff8080; }
+        a { color: #8cc8ff; }
+    </style>
+</head>
+<body>
+    <h1>Phase Chimes: listening check</h1>
+    <p>Renders 20 seconds of chimes offline with the sim's own voices and scheduler, then measures them.
+       Each scenario is centred on the realignment at t = T, where every pendulum strikes at once.
+       Peaks must stay below −1 dBFS. "Click residue" is what is left above 14 kHz with the
+       low-pass taken out and every partial below 11 kHz, so anything there is a discontinuity.</p>
+    <table><thead><tr><th>scenario</th><th>strikes</th><th>peak</th><th>loudest 400 ms (RMS)</th><th>click residue</th><th></th></tr></thead>
+    <tbody id="rows"></tbody></table>
+    <p id="status">Rendering…</p>
+    <script type="module">
+        import { LinearSource, noteFrequencies, midiToHz } from '../physics.js';
+        import { StrikeScheduler } from '../scheduler.js';
+        import { ChimeEngine } from '../audio.js';
+
+        const RATE = 48000, SECONDS = 20;
+        const VOICE_GAIN = 0.09;
+
+        const scenarios = [
+            { name: 'defaults: 15, k 51, one end', count: 15, k: 51, T: 60, mode: 'one', speed: 1 },
+            { name: '24 pendulums, both ends', count: 24, k: 51, T: 60, mode: 'both', speed: 1 },
+            { name: '24, both ends, 4× speed', count: 24, k: 51, T: 60, mode: 'both', speed: 4 },
+            { name: '15, centre crossing, 2×', count: 15, k: 51, T: 60, mode: 'centre', speed: 2 },
+        ];
+
+        // Same gain rule as script.js, at 18° and no damping
+        function gainFor(sc, freq) {
+            const chimes = sc.count * (sc.mode === 'both' ? 2 : 1);
+            return VOICE_GAIN * Math.sqrt(15 / chimes) * (262 / freq) ** 0.25 * (0.65 + 0.35 * 18 / 30);
+        }
+
+        async function render(sc, { lowpass }) {
+            const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE);
+            const engine = new ChimeEngine(ctx, { lowpass });
+            engine.setVolume(0.7);
+            const freqs = noteFrequencies(sc.count, { rootHz: midiToHz(60), span: 3 });
+            let strikes = 0;
+            const sched = new StrikeScheduler({
+                lookahead: SECONDS,
+                play: (e, time) => {
+                    strikes++;
+                    const pan = (e.n / (sc.count - 1) * 2 - 1) * 0.7;
+                    return engine.strike({ time, freq: freqs[e.n], pan, gain: gainFor(sc, freqs[e.n]), chime: `${e.n}:${e.end}` });
+                },
+                cancel: (v) => engine.cancel(v),
+            });
+            sched.setSource(new LinearSource(sc));
+            // Realignment in the middle of the render
+            const p0 = sc.T - (SECONDS / 2) * sc.speed;
+            sched.schedEnd = p0;
+            sched.anchor(0.05, p0, sc.speed);
+            sched.fill(0);
+            const buf = await ctx.startRendering();
+            return { buf, strikes };
+        }
+
+        function measure(buf) {
+            let peak = 0, loud = 0;
+            const win = RATE * 0.4;
+            for (let c = 0; c < buf.numberOfChannels; c++) {
+                const d = buf.getChannelData(c);
+                for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+                for (let s = 0; s + win <= d.length; s += win / 2) {
+                    let sum = 0;
+                    for (let i = s; i < s + win; i++) sum += d[i] * d[i];
+                    loud = Math.max(loud, Math.sqrt(sum / win));
+                }
+            }
+            return { peak, loud };
+        }
+
+        async function highResidue(buf) {
+            const ctx = new OfflineAudioContext(2, buf.length, RATE);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            let node = src;
+            for (let i = 0; i < 4; i++) {
+                const hp = ctx.createBiquadFilter();
+                hp.type = 'highpass';
+                hp.frequency.value = 14000;
+                node.connect(hp);
+                node = hp;
+            }
+            node.connect(ctx.destination);
+            src.start();
+            return measure(await ctx.startRendering()).peak;
+        }
+
+        const db = (x) => (20 * Math.log10(Math.max(x, 1e-12))).toFixed(1);
+
+        function wav(buf) {
+            const n = buf.length, ch = 2, out = new DataView(new ArrayBuffer(44 + n * ch * 2));
+            const w = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+            w(0, 'RIFF'); out.setUint32(4, 36 + n * ch * 2, true); w(8, 'WAVEfmt ');
+            out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true);
+            out.setUint32(24, RATE, true); out.setUint32(28, RATE * ch * 2, true);
+            out.setUint16(32, ch * 2, true); out.setUint16(34, 16, true); w(36, 'data');
+            out.setUint32(40, n * ch * 2, true);
+            const L = buf.getChannelData(0), R = buf.getChannelData(1);
+            for (let i = 0; i < n; i++) {
+                out.setInt16(44 + i * 4, Math.max(-1, Math.min(1, L[i])) * 32767, true);
+                out.setInt16(46 + i * 4, Math.max(-1, Math.min(1, R[i])) * 32767, true);
+            }
+            return new Blob([out], { type: 'audio/wav' });
+        }
+
+        const results = [];
+        for (const sc of scenarios) {
+            const { buf, strikes } = await render(sc, { lowpass: true });
+            const m = measure(buf);
+            const raw = await render(sc, { lowpass: false });
+            const residue = await highResidue(raw.buf);
+            const pass = m.peak < 10 ** (-1 / 20);
+            const url = URL.createObjectURL(wav(buf));
+            results.push({ name: sc.name, strikes, peakDb: +db(m.peak), loudDb: +db(m.loud), residueDb: +db(residue), pass });
+            document.getElementById('rows').insertAdjacentHTML('beforeend',
+                `<tr><td>${sc.name}</td><td>${strikes}</td><td class="${pass ? 'ok' : 'bad'}">${db(m.peak)} dBFS</td>` +
+                `<td>${db(m.loud)} dBFS</td><td>${db(residue)} dBFS</td><td><a href="${url}" download="phase-chimes-${results.length}.wav">wav</a></td></tr>`);
+        }
+        document.getElementById('status').textContent = results.every((r) => r.pass) ? 'All peaks below −1 dBFS.' : 'Some peaks are too hot.';
+        window.listenResults = results;
+    </script>
+</body>
+</html>

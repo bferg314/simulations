@@ -80,6 +80,33 @@ const simulations = [
         thumb: 'assets/thumbs/blood_vessel.jpg',
         tags: ['biology', 'medical', 'flow'],
         icon: '🩸'
+    },
+    {
+        id: 'phase_chimes',
+        title: 'Phase Chimes',
+        description: 'A pendulum wave that plays itself: fifteen chimes ripple, drift out of step and ring together again once a minute.',
+        path: 'simulations/phase_chimes/',
+        thumb: 'assets/thumbs/phase_chimes.jpg',
+        tags: ['physics', 'sound', 'waves'],
+        icon: '🎐'
+    },
+    {
+        id: 'slime_mould',
+        title: 'Slime Mould',
+        description: 'Tens of thousands of Physarum agents lay and follow trails, building transport networks between oat flakes, including a rough Tokyo map after Tero et al. (2010).',
+        path: 'simulations/slime_mould/',
+        thumb: 'assets/thumbs/slime_mould.jpg',
+        tags: ['biology', 'emergent', 'networks', 'agents'],
+        icon: '🟡'
+    },
+    {
+        id: 'snowflake',
+        title: 'Snowflake',
+        description: 'Grow a snow crystal on a hexagonal grid with Reiter\'s cellular model, from plates to ferny dendrites.',
+        path: 'simulations/snowflake/',
+        thumb: 'assets/thumbs/snowflake.jpg',
+        tags: ['weather', 'crystals', 'automata'],
+        icon: '❄️'
     }
 ];
 

@@ -40,6 +40,22 @@ A founding queen sinks a shaft, excavates a royal chamber, and raises a colony b
 - **Weather & threats**: Rain floods tunnels and collapses them, and an antlion waits on the surface
 - **Tech**: Canvas ImageData over a Three.js plane, cellular automata
 
+### 🎐 Phase Chimes
+A pendulum wave that plays itself. Pendulum *n* makes exactly *k + n* swings per cycle, so the row ripples, splits into two and three rows, looks random, and lines up again at the end of the cycle. Each bob strikes a chime.
+- **Sound**: Struck-bar chimes scheduled ahead on the Web Audio clock, in five scales (pentatonic, just major, slendro, Dorian)
+- **Physics**: Exact closed-form motion, or a "real pendulum" mode (RK4, full sin θ, air drag) that shows why real rows never quite realign
+- **Views**: Three-quarter, top-down and end-on cameras; keys `R` release, `M` mute, `1`–`3` cameras
+- **Tech**: Three.js with bloom, Web Audio, `node --test` for the maths ([details](simulations/phase_chimes/README.md))
+
+### ❄️ Snowflake
+A single snow crystal grows on a hexagonal grid under Clifford Reiter's local cellular model (2005).
+- **Three conditions**: background vapour (β), vapour supply (γ) and diffusion (α). They are the model's own numbers, not temperature and humidity.
+- **Presets from the paper's figures**: plate, sectored plate, broad star, stellar dendrite, fern, and a plate that sprouts dendrite arms
+- **Conditions drift**: β and γ wander as the crystal grows, giving mixed forms like a crystal falling through a cloud
+- **Nakaya inset**: where each form grows in real snow, redrawn after Libbrecht, as context only
+- **Save PNG** of the finished crystal
+- **Tech**: CPU cellular automaton on typed arrays, Canvas ImageData with fake relief, `node --test` checks for six-fold symmetry. Details and sources are in [simulations/snowflake/README.md](simulations/snowflake/README.md).
+
 ## 🔬 Biological Simulations (New!)
 Interactive 2D simulations exploring the microscopic world.
  
@@ -62,6 +78,14 @@ A high-fidelity hemodynamic simulation inside a blood vessel.
 - **Dynamic Blood Pressure**: Adjust Cardiac Output to change flow velocity and pressure. High pressure (>190mmHg) causes spontaneous vessel rupture.
 - **Immune Response**: White Blood Cells (Neutrophils) actively chemotax towards wounds to fight infection. It features clot aging and healing mechanics.
 - **Tech**: PIXI.js, Custom Shaders for plasma.
+
+### 🟡 Slime Mould
+*Physarum polycephalum* foraging, after Jeff Jones's 2010 agent model.
+- **Agents**: Tens of thousands of agents sense a chemical trail ahead, turn toward it, move and deposit, one agent per cell. The trail diffuses and decays.
+- **Networks**: The mould links oat flakes with veins that keep remodelling. Light repels it.
+- **Layouts**: A petri dish, bare agar, and a rough Tokyo map with 36 cities after Tero et al. (2010). The layout is approximate.
+- **Interaction**: Click places an oat flake, shift-click places a light, right-click or long-press removes. There is a tool menu for touch.
+- **Tech**: Typed arrays on the CPU, Canvas ImageData, Tweakpane. Parameter sources are in [its README](simulations/slime_mould/README.md).
 
 ## 🛠️ Technology Stack
 - **Core**: HTML5, Vanilla JavaScript (ES6+)
